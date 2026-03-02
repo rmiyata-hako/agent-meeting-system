@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIエージェント会議 議事録 — Webアプリ表示設計</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #f59e0b;
+    --l1: #64748b; --l2: #6366f1; --l3: #d97706; --hr: #0ea5e9; --ex: #7c3aed;
+    --go: #22c55e; --nogo: #ef4444; --cond: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ── ヘッダー ── */
+  .header {
+    text-align: center; padding: 48px 24px; margin-bottom: 40px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1a1a2e 100%);
+    border: 1px solid #334155; border-radius: 24px;
+    position: relative; overflow: hidden;
+  }
+  .header::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: conic-gradient(from 180deg, transparent, rgba(245,158,11,0.05), transparent, rgba(99,102,241,0.05), transparent);
+    animation: rotate 20s linear infinite;
+  }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  .header > * { position: relative; }
+  .header h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+  .header .meta { color: var(--muted); font-size: 13px; }
+  .header .badge {
+    display: inline-block; background: var(--accent); color: #000;
+    padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 800;
+    margin-top: 12px;
+  }
+
+  /* ── セクション ── */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-size: 18px; font-weight: 800; color: var(--accent);
+    border-bottom: 2px solid var(--surface2); padding-bottom: 8px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── アーキテクチャ図 ── */
+  .arch-diagram {
+    background: var(--surface); border: 1px solid var(--surface2); border-radius: 16px;
+    padding: 24px; margin-bottom: 24px; font-family: "Courier New", monospace;
+    font-size: 13px; line-height: 1.6; white-space: pre; overflow-x: auto;
+  }
+
+  /* ── 発言 ── */
+  .speech {
+    display: flex; gap: 12px; padding: 16px; margin-bottom: 12px;
+    background: var(--surface); border-radius: 16px;
+    border-left: 4px solid var(--l1); transition: all 0.2s;
+  }
+  .speech:hover { background: #253147; }
+  .speech.l1 { border-left-color: var(--l1); }
+  .speech.l2 { border-left-color: var(--l2); }
+  .speech.l3 { border-left-color: var(--l3); }
+  .speech.hr { border-left-color: var(--hr); }
+  .speech.ex { border-left-color: var(--ex); }
+  .speech .icon { font-size: 24px; flex-shrink: 0; }
+  .speech .name { font-weight: 800; font-size: 14px; }
+  .speech .role { color: var(--muted); font-size: 11px; }
+  .speech .tier {
+    font-size: 10px; font-weight: 800; padding: 2px 8px;
+    border-radius: 10px; display: inline-block; margin-left: 6px;
+  }
+  .tier-l1 { background: #64748b30; color: #94a3b8; }
+  .tier-l2 { background: #6366f130; color: #818cf8; }
+  .tier-l3 { background: #d9770630; color: #fbbf24; }
+  .tier-hr { background: #0ea5e930; color: #38bdf8; }
+  .tier-ex { background: #7c3aed30; color: #a78bfa; }
+  .speech .body { font-size: 14px; margin-top: 6px; color: #cbd5e1; }
+  .speech .body strong { color: var(--text); }
+
+  /* ── 決定事項 ── */
+  .decision-board {
+    background: linear-gradient(135deg, #14532d 0%, #1e293b 100%);
+    border: 1px solid #22c55e40; border-radius: 16px; padding: 24px;
+    margin-bottom: 24px;
+  }
+  .decision-board h3 { color: var(--go); font-size: 16px; margin-bottom: 16px; }
+  .decision-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 14px; background: #22c55e10; border-radius: 10px;
+    margin-bottom: 8px; font-size: 13px;
+  }
+  .decision-item .num {
+    background: var(--go); color: #000; width: 24px; height: 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; flex-shrink: 0;
+  }
+
+  /* ── ページ設計テーブル ── */
+  .page-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; }
+  .page-table th {
+    background: var(--surface2); color: var(--accent); font-size: 12px; font-weight: 700;
+    text-align: left; padding: 10px 14px;
+  }
+  .page-table th:first-child { border-radius: 10px 0 0 0; }
+  .page-table th:last-child { border-radius: 0 10px 0 0; }
+  .page-table td {
+    background: var(--surface); padding: 10px 14px; font-size: 13px;
+    border-bottom: 1px solid var(--surface2);
+  }
+  .page-table tr:last-child td:first-child { border-radius: 0 0 0 10px; }
+  .page-table tr:last-child td:last-child { border-radius: 0 0 10px 0; }
+  .priority-p1 { color: #ef4444; font-weight: 800; }
+  .priority-p2 { color: #f59e0b; font-weight: 800; }
+  .priority-p3 { color: #22c55e; font-weight: 800; }
+
+  /* ── Supabaseスキーマ ── */
+  .schema-block {
+    background: #1a1a2e; border: 1px solid #334155; border-radius: 12px;
+    padding: 20px; margin: 12px 0; font-family: "Courier New", monospace;
+    font-size: 12px; line-height: 1.6; overflow-x: auto;
+  }
+  .schema-block .table-name { color: #22c55e; font-weight: 700; }
+  .schema-block .col { color: #38bdf8; }
+  .schema-block .type { color: #fbbf24; }
+  .schema-block .comment { color: #64748b; }
+
+  /* ── 判定カード ── */
+  .verdict-card {
+    background: linear-gradient(135deg, #422006 0%, #1e293b 100%);
+    border: 2px solid var(--accent); border-radius: 20px;
+    padding: 32px; text-align: center; margin: 32px 0;
+  }
+  .verdict-card .label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .verdict-card .verdict { font-size: 48px; font-weight: 900; color: var(--go); }
+  .verdict-card .confidence { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .verdict-card .summary { font-size: 14px; color: #cbd5e1; margin-top: 16px; text-align: left; }
+
+  /* ── フッター ── */
+  .footer {
+    text-align: center; padding: 24px; color: var(--muted); font-size: 11px;
+    border-top: 1px solid var(--surface2); margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══ ヘッダー ═══ -->
+<div class="header">
+  <h1>🏛️ AIエージェント会議 議事録</h1>
+  <p class="meta">
+    議題: Webアプリケーション表示設計 — Supabase × HF Spaces × Vercel × Google OAuth<br>
+    日時: 2026年3月1日 | 参加: 14体（L1×8 + L2×3 + L3×1 + HR×1 + EX×1）
+  </p>
+  <span class="badge">SESSION #003</span>
+</div>
+
+<!-- ═══ Phase 0: アーキテクチャ確認 ═══ -->
+<div class="section">
+  <h2 class="section-title">📐 Phase 0 — 現行アーキテクチャ確認</h2>
+  <div class="arch-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                    本番デプロイ構成                             │
+│                                                              │
+│  ┌─────────────┐    HTTPS     ┌──────────────────────┐       │
+│  │   ユーザー    │ ──────────→ │  Vercel (Next.js)    │       │
+│  │  @company.com │ ←────────── │  - NextAuth Google   │       │
+│  └─────────────┘              │  - SSE streaming     │       │
+│                               │  - React 19 UI       │       │
+│                               └──────┬───────────────┘       │
+│                                      │ rewrites              │
+│                                      ▼                       │
+│                               ┌──────────────────────┐       │
+│                               │  HF Spaces (FastAPI) │       │
+│                               │  - Gemini API        │       │
+│                               │  - Claude API        │       │
+│                               │  - Groq API          │       │
+│                               │  port:7860 Docker    │       │
+│                               └──────┬───────────────┘       │
+│                                      │ service_role          │
+│                                      ▼                       │
+│                               ┌──────────────────────┐       │
+│                               │  Supabase (Postgres) │       │
+│                               │  - articles          │       │
+│                               │  - research_*        │       │
+│                               │  - meeting_*  (NEW)  │       │
+│                               │  - Realtime          │       │
+│                               └──────────────────────┘       │
+└──────────────────────────────────────────────────────────────┘
+
+✅ 既存:  NextAuth Google OAuth (ドメイン制限)
+✅ 既存:  Dockerfile (HF Spaces port 7860)
+✅ 既存:  Supabase接続 (service_role key)
+✅ 既存:  Next.js rewrites → FastAPI proxy
+🆕 必要:  会議データ用Supabaseテーブル (meeting_*)
+🆕 必要:  Supabase Realtime subscription (議論のリアルタイム配信)
+🆕 必要:  新規フロントエンド画面 × 8ページ
+  </div>
+</div>
+
+<!-- ═══ Phase 1: L1実行部隊の提案 ═══ -->
+<div class="section">
+  <h2 class="section-title">⚡ Phase 1 — L1実行部隊: 表示項目の提案</h2>
+
+  <!-- ハンター -->
+  <div class="speech l1">
+    <span class="icon">🔍</span>
+    <div>
+      <span class="name">ハンター</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">市場調査・情報収集</span>
+      <div class="body">
+        <strong>「リサーチ知見データベース」ページが必要です。</strong><br>
+        過去の会議で蓄積した市場データ・競合情報を<strong>検索・フィルタリング</strong>可能な形で表示すべき。
+        現在 <code>research_sessions</code> テーブルにデータは溜まるが、横断検索UIがない。
+        カテゴリ × キーワード × 日時 でフィルタリングできるアーカイブページを提案。<br>
+        <strong>追加提案:</strong> 「市場トレンドレーダー」— 過去の会議から抽出したトレンドワードを
+        時系列バブルチャートで可視化。同じ市場に何度もアクセスしている場合はアラート表示。
+      </div>
+    </div>
+  </div>
+
+  <!-- シパイ -->
+  <div class="speech l1">
+    <span class="icon">🕵️</span>
+    <div>
+      <span class="name">シパイ</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">競合調査・ベンチマーク</span>
+      <div class="body">
+        <strong>「競合マッピング」の常設表示を推奨。</strong><br>
+        各会議で分析した競合情報が散逸している。ポジショニングマップ（2軸マトリクス）で
+        過去の全案件の競合を一覧できるビューがあると、案件間の競合重複も発見できる。<br>
+        <strong>追加提案:</strong> 決定事項ページに「Go/NoGo比率」のダッシュボードウィジェットを追加。
+        判断の偏り（Goばかり出していないか）をチーム全体で可視化。
+      </div>
+    </div>
+  </div>
+
+  <!-- バズ美 -->
+  <div class="speech l1">
+    <span class="icon">📣</span>
+    <div>
+      <span class="name">バズ美</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">SNS・バズ分析</span>
+      <div class="body">
+        <strong>「ゲーム風UI」はマジで重要。見ていて楽しくないと誰も使わない。</strong><br>
+        リアルタイム表示は今の「評議会チャンバー」UIをベースに、以下を強化:<br>
+        ① エージェント発言時に<strong>チャット風吹き出し</strong>（Slack/Discord感覚）<br>
+        ② 各フェーズ切替時に<strong>ステージクリア演出</strong>（ゲームのステージ遷移風）<br>
+        ③ 最終判定時に<strong>全画面エフェクト</strong>（GO=緑の紙吹雪、NOGO=赤い警告、CONDITIONAL=黄色い注意）<br>
+        <strong>追加提案:</strong> 「観戦モード」— 他のチームメンバーがURLを共有してリアルタイムで会議を観戦可能に。
+        Supabase Realtimeで配信すれば実装可能。
+      </div>
+    </div>
+  </div>
+
+  <!-- ヒトミ -->
+  <div class="speech l1">
+    <span class="icon">👤</span>
+    <div>
+      <span class="name">ヒトミ</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">消費者インサイト</span>
+      <div class="body">
+        <strong>「ペルソナライブラリ」を追加表示すべき。</strong><br>
+        会議ごとに作成するターゲットペルソナが蓄積されていない。
+        過去の全ペルソナをカード形式で一覧し、類似ペルソナをグルーピング。
+        これにより「この層は過去にGoが出ている」「この層は失敗率が高い」がわかる。<br>
+        <strong>追加提案:</strong> 組織図ページに各エージェントの「得意な議題カテゴリ」を表示。
+        ユーザーが議題を入力する前に「この議題ならこのエージェントが活躍しそう」と予測表示。
+      </div>
+    </div>
+  </div>
+
+  <!-- シッパー -->
+  <div class="speech l1">
+    <span class="icon">🚢</span>
+    <div>
+      <span class="name">シッパー</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">物流・サプライチェーン</span>
+      <div class="body">
+        <strong>「コスト追跡ダッシュボード」は必須。</strong><br>
+        Gemini API / Claude API / Groq APIのトークン使用量が <code>research_token_usage</code> テーブルに
+        記録されるが、可視化UIがない。会議1回あたりのコスト、エージェント別コスト、
+        月次トレンドをグラフで見れるようにすべき。<br>
+        <strong>追加提案:</strong> Hugging Face Spaces の無料枠制限（CPU 16GB RAM, 2vCPU）に
+        注意が必要。同時会議数の上限をUIで表示すべき。
+      </div>
+    </div>
+  </div>
+
+  <!-- コピーマン -->
+  <div class="speech l1">
+    <span class="icon">✍️</span>
+    <div>
+      <span class="name">コピーマン</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">コピーライティング</span>
+      <div class="body">
+        <strong>議事録ページのUI/UXが最重要。</strong><br>
+        現在のHTML議事録ダウンロードは良いが、Supabaseに保存して<strong>ブラウザ内で閲覧・検索</strong>
+        できるべき。全文検索、タグ付け、スター付き（重要な議事録をお気に入り登録）。<br>
+        <strong>追加提案:</strong> 各議事録に「エグゼクティブサマリー」を自動生成して、
+        一覧ページではサマリーだけ表示。詳細を見たい時だけ展開するアコーディオン形式。
+      </div>
+    </div>
+  </div>
+
+  <!-- データボット -->
+  <div class="speech l1">
+    <span class="icon">📊</span>
+    <div>
+      <span class="name">データボット</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">データ分析・数値化</span>
+      <div class="body">
+        <strong>「分析ダッシュボード」ページの数値設計を提案。</strong><br>
+        表示すべきKPI:<br>
+        ① <strong>会議回数</strong>（日次/週次/月次）<br>
+        ② <strong>Go/NoGo/Conditional 比率</strong>（パイチャート）<br>
+        ③ <strong>平均確信度推移</strong>（折れ線グラフ）<br>
+        ④ <strong>エージェント別パフォーマンススコア</strong>（レーダーチャート。HRくん評価データから）<br>
+        ⑤ <strong>スキル成長曲線</strong>（research_skill_evolution テーブルから）<br>
+        ⑥ <strong>トークンコスト推移</strong>（棒グラフ。research_token_usage から）<br>
+        rechart は既に依存関係に入っているので実装コストは低い。
+      </div>
+    </div>
+  </div>
+
+  <!-- キロク -->
+  <div class="speech l1">
+    <span class="icon">📝</span>
+    <div>
+      <span class="name">キロク</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">議事録・記録</span>
+      <div class="body">
+        <strong>議事録保管の設計を整理します。</strong><br>
+        現在の問題: 議事録はHTMLファイルとして <code>public/docs/</code> にローカル保存のみ。<br>
+        改善案: Supabase <code>meeting_sessions</code> テーブルに全データを保存。<br>
+        必要なカラム: session_id, topic, context, phase_logs (JSONB), speech_logs (JSONB),
+        decisions (JSONB), verdict (TEXT), agent_results (JSONB), created_at, created_by (email)。<br>
+        <strong>重要:</strong> <code>speech_logs</code> をJSONB配列で保存すれば、
+        Supabase Realtimeでリアルタイム配信も、過去の再生（リプレイ機能）も実現可能。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Phase 2: L2リーダーのレビュー ═══ -->
+<div class="section">
+  <h2 class="section-title">🔮 Phase 2 — L2リーダー: 統合レビュー</h2>
+
+  <!-- ミライ -->
+  <div class="speech l2">
+    <span class="icon">🔮</span>
+    <div>
+      <span class="name">ミライ</span>
+      <span class="tier tier-l2">L2</span>
+      <span class="role">戦略リーダー</span>
+      <div class="body">
+        <strong>L1の提案を戦略的に整理します。</strong><br><br>
+        ユーザー要求6項目 + L1追加提案を統合すると、<strong>全10ページ</strong>の構成になる。<br>
+        ただし一度に全部作るのは非現実的。<strong>3フェーズに分けて段階リリース</strong>を提案:<br><br>
+        <strong>🔴 Phase A（MVP — 1週間目標）:</strong><br>
+        ① 組織図ページ（静的、agents.tsから自動生成）<br>
+        ② リアルタイム会議画面（既存の評議会チャンバー改修）<br>
+        ③ 議事録一覧・詳細ページ（Supabase保存 + 検索）<br>
+        ④ 決定事項ボード（最新のGo/NoGo一覧）<br><br>
+        <strong>🟡 Phase B（2-3週間目標）:</strong><br>
+        ⑤ スキル見える化ページ（エージェント別スキル + HRくん評価推移）<br>
+        ⑥ 分析ダッシュボード（KPI、コスト、パフォーマンス）<br>
+        ⑦ 観戦モード（Supabase Realtime配信）<br><br>
+        <strong>🟢 Phase C（将来拡張）:</strong><br>
+        ⑧ リサーチアーカイブ（横断検索、トレンドレーダー）<br>
+        ⑨ 競合マッピング<br>
+        ⑩ ペルソナライブラリ
+      </div>
+    </div>
+  </div>
+
+  <!-- ソロバン -->
+  <div class="speech l2">
+    <span class="icon">🧮</span>
+    <div>
+      <span class="name">ソロバン</span>
+      <span class="tier tier-l2">L2</span>
+      <span class="role">数値・収益リーダー</span>
+      <div class="body">
+        <strong>コスト面の試算結果:</strong><br><br>
+        <strong>インフラコスト（月額）:</strong><br>
+        ・Vercel: $0（Hobby無料枠 or Pro $20/月）<br>
+        ・HF Spaces: $0（CPU Basic無料）〜 $9/月（Upgraded CPU 8vCPU/32GB）<br>
+        ・Supabase: $0（Free: 500MB DB, 50K MAU）〜 $25/月（Pro: 8GB DB, 100K MAU）<br>
+        ・Gemini API: ~$0.01/会議（2.0 Flash: $0.10/1M tokens）<br><br>
+        <strong>⚠️ HF Spaces無料枠の制約:</strong><br>
+        ・CPU: 2vCPU / 16GB RAM（同時会議1-2件が限界）<br>
+        ・スリープ: 48時間非アクティブでスリープ → コールドスタート15-30秒<br>
+        ・対策: Vercel Cronで15分ごとにhealth checkを叩いてスリープ防止<br><br>
+        <strong>結論:</strong> 月額 $0〜$54 で全機能運用可能。最初は全て無料枠で十分。
+      </div>
+    </div>
+  </div>
+
+  <!-- ガードン -->
+  <div class="speech l2">
+    <span class="icon">🛡️</span>
+    <div>
+      <span class="name">ガードン</span>
+      <span class="tier tier-l2">L2</span>
+      <span class="role">品質管理・リスクリーダー</span>
+      <div class="body">
+        <strong>セキュリティ・認証の確認結果:</strong><br><br>
+        <strong>✅ 問題なし:</strong><br>
+        ・NextAuth v5 + Google OAuth: 組織ドメイン制限は <code>ALLOWED_EMAIL_DOMAINS</code> で実装済み<br>
+        ・Middleware (<code>proxy.ts</code>): 全ページ認証必須、/login と /api/auth のみ除外<br>
+        ・Supabase: service_role key はサーバーサイドのみ使用（クライアントに露出しない）<br><br>
+        <strong>⚠️ 要対応:</strong><br>
+        ① <strong>GEMINI_API_KEY がフロントエンド API Route に直書き</strong> — 現在の
+        <code>src/app/api/agents/stream/route.ts</code> はVercelのサーバーサイドで実行されるが、
+        HF Spaces移行時はバックエンド側に移す必要がある<br>
+        ② <strong>Supabase RLS</strong> — research_* テーブルのRLSが未有効。本番前に有効化必須<br>
+        ③ <strong>CSRFトークン</strong> — SSE接続はPOSTなので、NextAuthのCSRF保護が効いているか要確認<br>
+        ④ <strong>HF Spaces のアクセス制限</strong> — HF Spacesは基本公開。Secretsで認証するか、
+        Vercel経由のみアクセス許可する設計が必要（X-API-Key ヘッダー検証）
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Phase 3: キロクの議事録整理 ═══ -->
+<div class="section">
+  <h2 class="section-title">📝 Phase 3 — 議事録整理</h2>
+
+  <div class="speech l1">
+    <span class="icon">📝</span>
+    <div>
+      <span class="name">キロク</span>
+      <span class="tier tier-l1">L1</span>
+      <span class="role">議事録・記録</span>
+      <div class="body">
+        全提案を整理し、<strong>最終的な全画面構成</strong>をまとめます。
+      </div>
+    </div>
+  </div>
+
+  <table class="page-table">
+    <tr>
+      <th>#</th>
+      <th>ページ名</th>
+      <th>主な表示内容</th>
+      <th>データソース</th>
+      <th>優先度</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td><strong>🏛️ 組織図</strong></td>
+      <td>14体のエージェント階層、各スキル一覧、現在のステータス</td>
+      <td>agents.ts（静的）+ agent_skill_snapshots（Supabase）</td>
+      <td class="priority-p1">P1 MVP</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>📊 スキル見える化</strong></td>
+      <td>エージェント別スキルレーダーチャート、成長推移、HRくん評価履歴</td>
+      <td>research_skills + meeting_hr_reviews（Supabase）</td>
+      <td class="priority-p2">P2</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>✅ 決定事項ボード</strong></td>
+      <td>Go/NoGo/Conditional一覧、フィルタリング、判断理由のドリルダウン</td>
+      <td>meeting_decisions + research_decisions（Supabase）</td>
+      <td class="priority-p1">P1 MVP</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>📁 議事録アーカイブ</strong></td>
+      <td>全会議の議事録一覧、全文検索、スター付き、サマリー表示</td>
+      <td>meeting_sessions（Supabase）</td>
+      <td class="priority-p1">P1 MVP</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>🎮 リアルタイム会議</strong></td>
+      <td>評議会チャンバーUI（ゲーム風）、ステージ演出、エフェクト</td>
+      <td>SSE streaming + Supabase Realtime</td>
+      <td class="priority-p1">P1 MVP</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>📈 分析ダッシュボード</strong></td>
+      <td>会議回数、Go/NoGo比率、確信度推移、コスト推移</td>
+      <td>meeting_sessions + research_token_usage（Supabase）</td>
+      <td class="priority-p2">P2</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><strong>👁️ 観戦モード</strong></td>
+      <td>URLシェアでリアルタイム会議を他メンバーが閲覧</td>
+      <td>Supabase Realtime subscription</td>
+      <td class="priority-p2">P2</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><strong>🔍 リサーチアーカイブ</strong></td>
+      <td>過去の全リサーチ横断検索、トレンドレーダー</td>
+      <td>research_sessions + research_skills（Supabase）</td>
+      <td class="priority-p3">P3</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><strong>🗺️ 競合マッピング</strong></td>
+      <td>ポジショニングマップ、競合重複検出</td>
+      <td>meeting_agent_results（Supabase、spy出力から抽出）</td>
+      <td class="priority-p3">P3</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><strong>👥 ペルソナライブラリ</strong></td>
+      <td>過去のペルソナカード、類似グルーピング、成功率</td>
+      <td>meeting_agent_results（Supabase、hitomi出力から抽出）</td>
+      <td class="priority-p3">P3</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══ Phase 4: まとめの最終判断 ═══ -->
+<div class="section">
+  <h2 class="section-title">👑 Phase 4 — 最終判断</h2>
+
+  <div class="speech l3">
+    <span class="icon">👑</span>
+    <div>
+      <span class="name">まとめ</span>
+      <span class="tier tier-l3">L3</span>
+      <span class="role">統括・最終意思決定</span>
+      <div class="body">
+        <strong>結論: GO — 全て既存インフラで実現可能。</strong><br><br>
+        ミライの3フェーズ段階リリース案を採用。ガードンのセキュリティ指摘4点は
+        Phase A内で対応。ソロバンの試算により、初期コスト$0で開始可能。<br><br>
+        <strong>重要な意思決定:</strong><br>
+        ① 会議のSSEストリーミングは<strong>Vercel API Route（現行維持）</strong> — HF Spacesに移さない。
+        Vercelのサーバレスでレスポンスストリーミングが安定しているため。<br>
+        ② データ永続化は<strong>全てSupabase経由</strong> — HF Spacesはステートレスに。<br>
+        ③ Supabase Realtimeは<strong>Phase B（観戦モード）</strong>で導入 — MVP段階では不要。
+      </div>
+    </div>
+  </div>
+
+  <div class="verdict-card">
+    <div class="label">👑 まとめ（統括）による最終判定</div>
+    <div class="verdict">GO</div>
+    <div class="confidence">確信度: 92% | 全て既存インフラで実現可能</div>
+    <div class="summary">
+      <strong>エグゼクティブサマリー:</strong><br>
+      Supabase × HF Spaces × Vercel × Google OAuth の構成で10ページのWebアプリケーションを構築可能。
+      現在のコードベースには認証・DB接続・Docker・デプロイ設定が既に整備されており、
+      新規に必要なのはSupabaseテーブル追加とフロントエンドコンポーネント開発のみ。
+      月額$0〜$54で運用可能。Phase A（MVP 4画面）→ Phase B（3画面追加）→ Phase C（3画面追加）の
+      3段階リリースを推奨。
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Phase 5: HRくんのフィードバック ═══ -->
+<div class="section">
+  <h2 class="section-title">💼 Phase 5 — HRくん: スキルフィードバック</h2>
+
+  <div class="speech hr">
+    <span class="icon">💼</span>
+    <div>
+      <span class="name">HRくん</span>
+      <span class="tier tier-hr">HR</span>
+      <span class="role">人事・スキル開発</span>
+      <div class="body">
+        <strong>今回の会議パフォーマンス評価:</strong><br><br>
+        <strong>チーム全体スコア: 78/100</strong><br><br>
+        <strong>良かった点:</strong><br>
+        ・バズ美の「観戦モード」提案 — ユーザー体験の本質を突いている（A評価）<br>
+        ・データボットのKPI設計 — 具体的で実装可能（A評価）<br>
+        ・キロクのデータモデル提案 — Supabaseの特性を理解した設計（A評価）<br><br>
+        <strong>改善が必要な点:</strong><br>
+        ・ハンター: 「トレンドレーダー」は良いがSupabase全文検索の技術的制約に言及なし<br>
+        → <strong>追加スキル提案: 「Supabase pgvector / pg_trgm 全文検索」</strong><br><br>
+        ・シッパー: HF Spacesの制約を指摘したのは良いが、代替案が不足<br>
+        → <strong>追加スキル提案: 「HF Spaces GPU vs CPU プラン比較」</strong><br><br>
+        ・コピーマン: UI/UXの提案が抽象的。具体的なワイヤーフレーム提案スキルが必要<br>
+        → <strong>追加スキル提案: 「Figma/ワイヤーフレーム出力」</strong><br><br>
+        <strong>次回会議に向けた準備事項:</strong><br>
+        ・全エージェント: Supabase Realtime の技術制約を事前学習<br>
+        ・ガードン: Vercel + HF Spaces 間のAPIキー管理ベストプラクティスを調査
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Phase 6: シャガイトリの構造改善レポート ═══ -->
+<div class="section">
+  <h2 class="section-title">🏢 Phase 6 — シャガイトリ: 構造改善レポート</h2>
+
+  <div class="speech ex">
+    <span class="icon">🏢</span>
+    <div>
+      <span class="name">シャガイトリ</span>
+      <span class="tier tier-ex">EX</span>
+      <span class="role">社外取締役・独立監査</span>
+      <div class="body">
+        <strong>構造監査結果:</strong><br><br>
+
+        <strong>1. アーキテクチャの構造的問題:</strong><br>
+        現在、<strong>2つの独立したエージェントシステムが並存</strong>している:<br>
+        ・<code>api/research_agents.py</code> — 9エージェント（Python/FastAPI、Supabase直結）<br>
+        ・<code>src/app/api/agents/stream/route.ts</code> — 14エージェント（TypeScript/Next.js API Route）<br>
+        これは<strong>二重投資</strong>。統合すべき。<br><br>
+
+        <strong>提案:</strong> 会議エンジン（14エージェント）もFastAPI側に移行し、
+        Next.js API RouteはFastAPIへのプロキシのみにする。これにより:<br>
+        ・エージェント定義の一元管理<br>
+        ・Supabaseへの直接保存（会議結果を即座にDB書き込み）<br>
+        ・HF SpacesのGPU利用が将来的に可能（ローカルLLM実行）<br><br>
+
+        <strong>2. 認知バイアス検出:</strong><br>
+        ・<strong>アンカリング:</strong> 「既存コードを活かす」前提が強すぎる。
+        SSEストリーミングをVercel API Routeに残す判断は、Vercelの
+        サーバレスタイムアウト（60秒 Hobby / 300秒 Pro）を考慮していない。
+        14エージェント × 6フェーズの処理時間が300秒を超える可能性あり。<br>
+        ・<strong>確証バイアス:</strong> 「全て無料枠で十分」は楽観的すぎる。
+        組織内で複数人が同時利用する場合のスケーリングを未検討。<br><br>
+
+        <strong>3. 外部知見からの提案:</strong><br>
+        ・<strong>CrewAI Studio</strong>: エージェント実行のObservabilityに
+        <a href="#">LangSmith/Langfuse</a>的なトレーシングを導入すべき。
+        各エージェントの入出力をstructured loggingとして保存。<br>
+        ・<strong>AutoGen v0.4</strong>: メッセージパッシングアーキテクチャの採用。
+        現在の「Phase順次実行」は単純だが、将来的にはエージェント間の
+        非同期メッセージングにすべき（例: ガードンがL1実行中にリアルタイムで警告を出す）。<br>
+        ・<strong>LangGraph</strong>: ステートマシンベースのワークフロー定義。
+        Phase遷移をグラフ構造で定義すると、条件分岐（例: リスクHighならPhase追加）が容易。<br><br>
+
+        <strong>4. 短期・中期・長期の進化ロードマップ:</strong><br>
+        <strong>短期（次回会議）:</strong> 会議エンジンをFastAPIに統合する設計を開始<br>
+        <strong>中期（1ヶ月）:</strong> Langfuse的なObservability layer追加<br>
+        <strong>長期（3ヶ月）:</strong> エージェント間メッセージパッシング + 動的Phase生成
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 決定事項ボード ═══ -->
+<div class="section">
+  <h2 class="section-title">✅ 最終決定事項</h2>
+
+  <div class="decision-board">
+    <h3>✅ 全会議を通じた決定事項（12項目）</h3>
+
+    <div class="decision-item">
+      <span class="num">1</span>
+      <div><strong>GO判定:</strong> Supabase × HF Spaces × Vercel × Google OAuth でWebアプリ化は完全に実現可能</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">2</span>
+      <div><strong>段階リリース:</strong> Phase A（MVP 4画面）→ B（3画面）→ C（3画面）の3段階</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">3</span>
+      <div><strong>Phase A MVP画面:</strong> ① 組織図 ② リアルタイム会議 ③ 議事録アーカイブ ④ 決定事項ボード</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">4</span>
+      <div><strong>Phase B 追加画面:</strong> ⑤ スキル見える化 ⑥ 分析ダッシュボード ⑦ 観戦モード</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">5</span>
+      <div><strong>Phase C 将来拡張:</strong> ⑧ リサーチアーカイブ ⑨ 競合マッピング ⑩ ペルソナライブラリ</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">6</span>
+      <div><strong>データ設計:</strong> 新規Supabaseテーブル meeting_sessions / meeting_decisions / meeting_hr_reviews / agent_skill_snapshots を追加</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">7</span>
+      <div><strong>コスト:</strong> 初期は全て無料枠で運用可能。月額 $0〜$54 の範囲</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">8</span>
+      <div><strong>セキュリティ対応（P1）:</strong> Supabase RLS有効化、HF Spaces APIキー検証、GEMINI_API_KEY移管</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">9</span>
+      <div><strong>追加表示項目（エージェント提案）:</strong> コスト追跡ダッシュボード、観戦モード（Supabase Realtime）、リサーチ横断検索、ペルソナライブラリ、Go/NoGo比率ウィジェット</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">10</span>
+      <div><strong>シャガイトリ指摘（要検討）:</strong> 2つのエージェントシステム（Python 9体 / TypeScript 14体）の統合を中期で検討</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">11</span>
+      <div><strong>シャガイトリ指摘（要検討）:</strong> Vercelサーバレスタイムアウト（60秒/300秒）と14エージェント処理時間の検証が必要</div>
+    </div>
+    <div class="decision-item">
+      <span class="num">12</span>
+      <div><strong>HRくん追加スキル:</strong> Supabase全文検索 / HF Spacesプラン比較 / ワイヤーフレーム出力 を各エージェントに追加推奨</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 新規Supabaseテーブル設計 ═══ -->
+<div class="section">
+  <h2 class="section-title">🗄️ 新規Supabaseテーブル設計</h2>
+
+  <div class="schema-block">
+<span class="comment">-- ══ 会議セッション ══</span>
+<span class="table-name">CREATE TABLE</span> meeting_sessions (
+    <span class="col">id</span>          <span class="type">BIGSERIAL PRIMARY KEY</span>,
+    <span class="col">session_id</span>  <span class="type">TEXT UNIQUE NOT NULL</span>,
+    <span class="col">topic</span>       <span class="type">TEXT NOT NULL</span>,
+    <span class="col">context</span>     <span class="type">TEXT DEFAULT ''</span>,
+    <span class="col">verdict</span>     <span class="type">TEXT</span>,                <span class="comment">-- GO / NOGO / CONDITIONAL</span>
+    <span class="col">confidence</span>  <span class="type">INT</span>,                 <span class="comment">-- 0-100</span>
+    <span class="col">summary</span>     <span class="type">TEXT</span>,
+    <span class="col">speech_logs</span> <span class="type">JSONB DEFAULT '[]'</span>, <span class="comment">-- 全発言ログ（リプレイ用）</span>
+    <span class="col">phase_logs</span>  <span class="type">JSONB DEFAULT '[]'</span>, <span class="comment">-- フェーズ遷移ログ</span>
+    <span class="col">agent_results</span> <span class="type">JSONB DEFAULT '{}'</span>,
+    <span class="col">created_by</span>  <span class="type">TEXT</span>,              <span class="comment">-- Google OAuth email</span>
+    <span class="col">starred</span>     <span class="type">BOOLEAN DEFAULT FALSE</span>,
+    <span class="col">tags</span>        <span class="type">TEXT[] DEFAULT '{}'</span>,
+    <span class="col">created_at</span>  <span class="type">TIMESTAMPTZ DEFAULT NOW()</span>
+);
+
+<span class="comment">-- ══ 会議の決定事項 ══</span>
+<span class="table-name">CREATE TABLE</span> meeting_decisions (
+    <span class="col">id</span>           <span class="type">BIGSERIAL PRIMARY KEY</span>,
+    <span class="col">session_id</span>   <span class="type">TEXT REFERENCES meeting_sessions(session_id)</span>,
+    <span class="col">agent_id</span>     <span class="type">TEXT NOT NULL</span>,
+    <span class="col">agent_name</span>   <span class="type">TEXT NOT NULL</span>,
+    <span class="col">decision_text</span> <span class="type">TEXT NOT NULL</span>,
+    <span class="col">verdict</span>      <span class="type">TEXT</span>,           <span class="comment">-- GO / NOGO / CONDITIONAL（最終判定用）</span>
+    <span class="col">reasoning</span>    <span class="type">JSONB DEFAULT '{}'</span>,
+    <span class="col">created_at</span>   <span class="type">TIMESTAMPTZ DEFAULT NOW()</span>
+);
+
+<span class="comment">-- ══ HRくん評価レコード ══</span>
+<span class="table-name">CREATE TABLE</span> meeting_hr_reviews (
+    <span class="col">id</span>              <span class="type">BIGSERIAL PRIMARY KEY</span>,
+    <span class="col">session_id</span>      <span class="type">TEXT REFERENCES meeting_sessions(session_id)</span>,
+    <span class="col">agent_id</span>        <span class="type">TEXT NOT NULL</span>,
+    <span class="col">output_quality</span>  <span class="type">TEXT</span>,          <span class="comment">-- A/B/C/D</span>
+    <span class="col">role_fulfillment</span> <span class="type">INT</span>,          <span class="comment">-- 0-100</span>
+    <span class="col">collaboration</span>   <span class="type">INT</span>,          <span class="comment">-- 0-100</span>
+    <span class="col">strengths</span>       <span class="type">TEXT[]</span>,
+    <span class="col">skill_gaps</span>      <span class="type">TEXT[]</span>,
+    <span class="col">improvements</span>    <span class="type">TEXT[]</span>,
+    <span class="col">new_skills</span>      <span class="type">TEXT[]</span>,
+    <span class="col">created_at</span>      <span class="type">TIMESTAMPTZ DEFAULT NOW()</span>
+);
+
+<span class="comment">-- ══ エージェントスキルスナップショット ══</span>
+<span class="table-name">CREATE TABLE</span> agent_skill_snapshots (
+    <span class="col">id</span>          <span class="type">BIGSERIAL PRIMARY KEY</span>,
+    <span class="col">agent_id</span>    <span class="type">TEXT NOT NULL</span>,
+    <span class="col">skills</span>      <span class="type">TEXT[] NOT NULL</span>,
+    <span class="col">tier</span>        <span class="type">TEXT NOT NULL</span>,
+    <span class="col">version</span>     <span class="type">INT DEFAULT 1</span>,
+    <span class="col">change_log</span>  <span class="type">TEXT</span>,
+    <span class="col">created_at</span>  <span class="type">TIMESTAMPTZ DEFAULT NOW()</span>
+);
+  </div>
+</div>
+
+<!-- ═══ フッター ═══ -->
+<div class="footer">
+  <p>AIエージェント会議システム v2.0 | 14体（L1×8 + L2×3 + L3×1 + HR×1 + EX×1） | SESSION #003</p>
+  <p>Generated: 2026-03-01</p>
+</div>
+
+</div>
+</body>
+</html>

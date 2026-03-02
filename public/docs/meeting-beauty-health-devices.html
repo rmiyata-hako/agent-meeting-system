@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIエージェント会議 議事録 — 美容機器・健康増進機器 輸入案件</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,"Noto Sans JP",sans-serif;
+  background:#0f172a; color:#e2e8f0; line-height:1.8; font-size:15px;
+}
+
+/* HUD Header */
+.hud-header{
+  position:sticky;top:0;z-index:100;
+  background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+  border-bottom:1px solid #334155;
+  padding:16px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.hud-header h1{font-size:18px;font-weight:800;color:#fbbf24;display:flex;align-items:center;gap:8px}
+.hud-phase{display:flex;gap:6px}
+.hud-phase .dot{
+  width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;
+}
+.dot-done{background:#22c55e;color:#fff}
+.dot-active{background:#fbbf24;color:#1e293b;box-shadow:0 0 12px rgba(251,191,36,0.5)}
+.dot-pending{background:#334155;color:#64748b}
+
+.container{max-width:960px;margin:0 auto;padding:24px 16px}
+
+/* Section */
+.section{margin-bottom:32px}
+.section-title{
+  font-size:14px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid #1e293b;padding-bottom:8px;
+}
+
+/* Verdict */
+.verdict-card{
+  text-align:center;padding:32px;border-radius:16px;margin-bottom:24px;
+  background:linear-gradient(135deg,#1e293b,#0f172a);
+  border:2px solid #fbbf24;
+}
+.verdict-label{font-size:12px;color:#94a3b8;margin-bottom:8px}
+.verdict-badges{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
+.verdict-badge{
+  font-size:20px;font-weight:900;padding:10px 28px;border-radius:12px;
+  display:inline-block;
+}
+.badge-go{background:#166534;color:#4ade80;border:2px solid #22c55e}
+.badge-conditional{background:#713f12;color:#fbbf24;border:2px solid #f59e0b}
+.badge-hold{background:#44403c;color:#a8a29e;border:2px solid #78716c}
+
+/* Priority Cards */
+.priority-card{
+  background:#1e293b;border-radius:16px;padding:20px;margin-bottom:16px;
+  border-left:4px solid;position:relative;overflow:hidden;
+}
+.priority-card::before{
+  content:'';position:absolute;top:0;right:0;width:120px;height:120px;
+  border-radius:50%;opacity:0.03;
+}
+.priority-1{border-left-color:#ef4444}
+.priority-1::before{background:#ef4444}
+.priority-2{border-left-color:#f59e0b}
+.priority-2::before{background:#f59e0b}
+.priority-3{border-left-color:#3b82f6}
+.priority-3::before{background:#3b82f6}
+
+.priority-label{
+  display:inline-block;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;margin-bottom:8px;
+}
+.pl-1{background:#450a0a;color:#fca5a5}
+.pl-2{background:#451a03;color:#fde68a}
+.pl-3{background:#172554;color:#93c5fd}
+
+.product-name{font-size:18px;font-weight:800;color:#f8fafc;margin-bottom:4px}
+.product-origin{font-size:12px;color:#64748b;margin-bottom:12px}
+
+.metrics-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.metric{background:#0f172a;border-radius:10px;padding:10px;text-align:center}
+.metric-label{font-size:10px;color:#64748b;margin-bottom:2px}
+.metric-value{font-size:16px;font-weight:800;color:#e2e8f0}
+.metric-value.green{color:#4ade80}
+.metric-value.amber{color:#fbbf24}
+.metric-value.red{color:#f87171}
+
+/* Speech Bubble */
+.speech{
+  display:flex;gap:12px;margin-bottom:12px;
+  animation:fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.speech-avatar{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:16px;border:2px solid;background:#1e293b;flex-shrink:0;
+}
+.speech-body{flex:1;min-width:0}
+.speech-meta{font-size:11px;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.speech-meta .name{font-weight:700}
+.speech-meta .tier{
+  font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;
+}
+.tier-l1{background:#334155;color:#94a3b8}
+.tier-l2{background:#312e81;color:#a5b4fc}
+.tier-l3{background:#451a03;color:#fde68a}
+.speech-text{
+  font-size:14px;color:#cbd5e1;background:#1e293b;border-radius:10px;padding:10px 14px;
+  border-left:3px solid;
+}
+
+/* Decision Board */
+.decision-item{
+  display:flex;align-items:flex-start;gap:8px;padding:8px 12px;
+  background:#0f2f1a;border:1px solid #166534;border-radius:10px;margin-bottom:6px;
+}
+.decision-check{color:#4ade80;font-size:14px;flex-shrink:0;margin-top:2px}
+.decision-text{font-size:13px;color:#86efac}
+.decision-agent{font-size:10px;color:#166534;margin-top:2px}
+
+/* Risk */
+.risk-item{
+  display:flex;align-items:flex-start;gap:8px;padding:8px 12px;
+  background:#2a1215;border:1px solid #991b1b;border-radius:10px;margin-bottom:6px;
+}
+.risk-icon{color:#f87171;font-size:14px;flex-shrink:0;margin-top:2px}
+.risk-text{font-size:13px;color:#fca5a5}
+
+/* Footer */
+.footer{
+  text-align:center;padding:24px;color:#475569;font-size:12px;
+  border-top:1px solid #1e293b;margin-top:32px;
+}
+
+/* Table */
+.eval-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.eval-table th{background:#1e293b;color:#94a3b8;padding:8px 12px;text-align:left;font-size:11px;font-weight:700;border-bottom:1px solid #334155}
+.eval-table td{padding:8px 12px;border-bottom:1px solid #1e293b;color:#cbd5e1}
+.eval-table tr:hover{background:#1e293b30}
+.mark-yes{color:#4ade80;font-weight:700}
+.mark-no{color:#f87171;font-weight:700}
+.mark-partial{color:#fbbf24;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- HUD Header -->
+<div class="hud-header">
+  <h1>🏛️ AIエージェント会議 議事録</h1>
+  <div class="hud-phase">
+    <div class="dot dot-done">✓</div>
+    <div class="dot dot-done">✓</div>
+    <div class="dot dot-done">✓</div>
+    <div class="dot dot-done">✓</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- Meta -->
+<div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:24px;border:1px solid #334155">
+  <p style="font-size:13px;color:#94a3b8">
+    <strong style="color:#e2e8f0">議題:</strong> 海外の美容機器・健康増進機器の日本市場輸入ビジネス — 10案件以上リサーチし3案件に絞り込み<br>
+    <strong style="color:#e2e8f0">日時:</strong> 2026年3月1日<br>
+    <strong style="color:#e2e8f0">参加者:</strong> 12体のAIエージェント（L1実行×8 / L2リーダー×3 / L3統括×1）<br>
+    <strong style="color:#e2e8f0">使用モデル:</strong> Gemini 2.0 Flash
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Phase 1: L1 実行部隊のリサーチ結果 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">📡 Phase 1: L1実行部隊 — 10案件リサーチ</div>
+
+  <!-- ハンター -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#3b82f6">🔍</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#3b82f6">ハンター</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">市場調査・情報収集</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#3b82f6">
+        世界の美容デバイス市場は2024年時点で約889億ドル、2026年には1,305億ドルに到達見込みです。<br>
+        マイクロカレント市場だけで2025年に5億ドル、CAGR 15%で2033年に18億ドル規模に成長予測。<br>
+        赤外線治療デバイス市場も2023年の12.3億ドルから2032年に38.9億ドル（CAGR 13.7%）。<br><br>
+        <strong>以下10案件をリストアップしました:</strong><br>
+        ①ZIIP Halo（米/マイクロカレント）②Joovv Solo 3.0（米/レッドライトパネル）③HigherDOSE サウナブランケット（米/赤外線）④MiHIGH サウナブランケット（英/赤外線）⑤NuFACE Trinity+（米/マイクロカレント）⑥Mito Red Light MitoPRO（米/レッドライト）⑦Sensica Sensilift（イスラエル/RF+マイクロカレント）⑧Bon Charge レッドライトマスク（豪/LED）⑨LYMA Laser（英/レーザー美顔器）⑩Heat Healer サウナブランケット（豪/赤外線）⑪Foreo BEAR 2（スウェーデン/マイクロカレント）⑫Opove Apex マッサージガン（中/リカバリー）
+      </div>
+    </div>
+  </div>
+
+  <!-- シパイ -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#8b5cf6">🕵️</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#8b5cf6">シパイ</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">競合調査・ベンチマーク</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#8b5cf6">
+        日本市場の競合状況を調査しました。既に日本上陸済みのブランドを除外します:<br><br>
+        ❌ <strong>Foreo BEAR</strong> → 日本公式サイトあり。除外<br>
+        ❌ <strong>TheraFace Pro</strong> → therabody.jp + Amazon.co.jp 正規販売中。除外<br>
+        ❌ <strong>CurrentBody LED</strong> → currentbody.jp 公式展開中、累計70万台。除外<br>
+        ⚠️ <strong>NuFACE</strong> → lookfantasticで並行輸入品あるが正規代理店なし。候補残留<br>
+        ✅ <strong>ZIIP Halo</strong> → 日本正規販売なし。代理店権の余地あり<br>
+        ✅ <strong>Joovv</strong> → 日本未上陸。セカイモン個人輸入のみ<br>
+        ✅ <strong>HigherDOSE</strong> → 日本未上陸。SSENSE掲載のみ<br>
+        ✅ <strong>MiHIGH</strong> → 日本未上陸（フロントロウ確認済）<br>
+        ✅ <strong>Mito Red Light</strong> → 日本販売なし<br>
+        ✅ <strong>LYMA Laser</strong> → 日本販売なし<br>
+        ✅ <strong>Bon Charge</strong> → 日本販売なし<br>
+        ✅ <strong>Heat Healer</strong> → 日本販売なし
+      </div>
+    </div>
+  </div>
+
+  <!-- バズ美 -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#f59e0b">📣</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#f59e0b">バズ美</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">SNS・バズ分析</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#f59e0b">
+        SNSバズポテンシャルの分析結果です:<br><br>
+        🔥 <strong>ZIIP Halo</strong> — Instagramで美容皮膚科医・セレブが多数推薦。4.8★/1,374レビュー。ビフォーアフター映えが最強<br>
+        🔥 <strong>Joovv</strong> — バイオハッカー・フィットネス系インフルエンサーの「ルーティン」に頻出。赤い光の映像がTikTokで映える<br>
+        🔥 <strong>HigherDOSE</strong> — セレーナ・ゴメス、ジジ・ハディッドが使用。サウナ×セルフケアの文脈でInstagram映え最強<br>
+        △ <strong>Mito Red Light</strong> — プロアスリート向け。一般消費者のバズは弱い<br>
+        △ <strong>LYMA Laser</strong> — 価格$2,695で高すぎ、バズ層と合わない
+      </div>
+    </div>
+  </div>
+
+  <!-- ヒトミ -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#ec4899">👤</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#ec4899">ヒトミ</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">消費者インサイト</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#ec4899">
+        日本のターゲット消費者のJTBD（Jobs to be Done）分析:<br><br>
+        <strong>ペルソナ:</strong> 30-45歳女性、美容感度高、月の美容予算3-5万円、「エステに行く時間がない」<br>
+        <strong>コアJTBD:</strong> 「自宅で、プロ級のエイジングケアを、毎日5分で済ませたい」<br>
+        <strong>購買障壁:</strong> ①薬機法的に大丈夫？ ②本当に効くの？ ③高すぎない？ の3つ<br>
+        <strong>感情トリガー:</strong> 「海外セレブ愛用」「皮膚科医推薦」「FDA認証」が最も響く<br><br>
+        → ZIIP Halo（FDA承認済+セレブ推薦）が最もペルソナにフィットします
+      </div>
+    </div>
+  </div>
+
+  <!-- シッパー -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#a855f7">🚢</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#a855f7">シッパー</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">物流・サプライチェーン</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#a855f7">
+        物流・輸入実現可能性の評価:<br><br>
+        <strong>ZIIP Halo:</strong> 小型68g、100-240V対応。PSE対象はUSBケーブルのみ。輸送コスト低。✅ 実現性:高<br>
+        <strong>Joovv Solo 3.0:</strong> 大型パネル(24×8インチ)、重量7kg。100-240V対応。輸送コスト高。PSE要確認。⚠️ 実現性:中<br>
+        <strong>HigherDOSE:</strong> ブランケット型で大型だが折り畳み可。⚠️ 120V仕様！日本100Vでは変圧器必要 or OEM版要交渉。実現性:中<br>
+        <strong>MiHIGH:</strong> UK仕様プラグ。日本電圧との適合性に懸念。⚠️ 実現性:中<br>
+        <strong>LYMA:</strong> $2,695+消費税+関税で最終価格40万円超。❌ 実現性:低
+      </div>
+    </div>
+  </div>
+
+  <!-- コピーマン -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#f97316">✍️</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#f97316">コピーマン</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">コピーライティング</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#f97316">
+        LP・セールスコピーの観点で各製品のマーケティング訴求力を評価:<br><br>
+        <strong>ZIIP:</strong> 「NYの美容皮膚科医が開発した次世代美顔器」→ 権威性+新奇性=10/10。ストーリーが作りやすい<br>
+        <strong>Joovv:</strong> 「NASAも研究した赤色光で全身アンチエイジング」→ 科学的根拠訴求が強い。ただし「パネルに立つだけ」は絵が地味<br>
+        <strong>HigherDOSE:</strong> 「NYセレブ御用達インフラレッドサウナ × おうちで整う」→ サウナブーム×セルフケア=トレンド訴求最強
+      </div>
+    </div>
+  </div>
+
+  <!-- データボット -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#14b8a6">📊</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#14b8a6">データボット</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">データ分析・数値化</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#14b8a6">
+        ROI試算（上位5案件）:<br><br>
+        <table class="eval-table">
+          <tr><th>製品</th><th>仕入原価(税込)</th><th>想定販売価格</th><th>粗利率</th><th>初期投資</th><th>BEP</th></tr>
+          <tr><td>ZIIP Halo</td><td>¥35,000</td><td>¥55,000</td><td style="color:#4ade80">36%</td><td>¥300万</td><td>150台</td></tr>
+          <tr><td>Joovv Mini 3.0</td><td>¥90,000</td><td>¥148,000</td><td style="color:#4ade80">39%</td><td>¥500万</td><td>87台</td></tr>
+          <tr><td>HigherDOSE</td><td>¥65,000</td><td>¥110,000</td><td style="color:#4ade80">41%</td><td>¥400万</td><td>89台</td></tr>
+          <tr><td>NuFACE Trinity+</td><td>¥30,000</td><td>¥49,800</td><td style="color:#fbbf24">30%</td><td>¥250万</td><td>126台</td></tr>
+          <tr><td>Mito Red</td><td>¥80,000</td><td>¥128,000</td><td style="color:#4ade80">37%</td><td>¥400万</td><td>84台</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Phase 2: L2 リーダーレビュー -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🔎 Phase 2: L2リーダー — レビュー・統合</div>
+
+  <!-- ミライ -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#6366f1">🔮</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#6366f1">ミライ</span>
+        <span class="tier tier-l2">L2</span>
+        <span style="color:#475569">戦略リーダー</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#6366f1">
+        L1レビュー結果 — ハンターA/シパイA/バズ美A<br><br>
+        <strong>戦略評価:</strong> 3つのメガトレンドが交差するポイントに投資すべき。<br>
+        ① 在宅美容（コロナ以降の不可逆トレンド）<br>
+        ② バイオハッキング（レッドライト・赤外線の科学的根拠蓄積）<br>
+        ③ サウナブーム（日本の「ととのう」文化との親和性）<br><br>
+        <strong>3シナリオ:</strong><br>
+        🟢 楽観: ZIIP独占代理権取得 + SNSバズで初年度5,000万円売上<br>
+        🟡 中立: 正規代理店として2ブランド並行展開、初年度2,000万円<br>
+        🔴 悲観: 薬機法クリアに1年以上かかり、その間に競合が参入<br><br>
+        <strong>最優先:</strong> ZIIP Halo。次点: Joovv（バイオハッカー市場）。第3候補: HigherDOSE（サウナブーム）
+      </div>
+    </div>
+  </div>
+
+  <!-- ソロバン -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#22c55e">🧮</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#22c55e">ソロバン</span>
+        <span class="tier tier-l2">L2</span>
+        <span style="color:#475569">数値・収益リーダー</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#22c55e">
+        L1レビュー結果 — シッパーB+/データボットA/コピーマンA<br><br>
+        <strong>収益性評価:</strong><br>
+        データボットの粗利率は妥当。ただしシッパーが指摘した電圧問題を加味すると:<br><br>
+        ・ZIIP Halo: 100-240V対応で追加コストゼロ。粗利36%は堅い → ✅<br>
+        ・Joovv: 本体高額だが粗利39%は魅力的。ただし大型なので倉庫コスト月10万追加 → ⚠️<br>
+        ・HigherDOSE: 120V問題あり。日本仕様のOEM生産を交渉できれば粗利41%で最高。できなければ変圧器同梱で原価+8,000円 → ⚠️<br><br>
+        <strong>損益分岐:</strong> ZIIP 150台/月5万円×150=750万円売上でBEP。月25台売れば6ヶ月で回収。現実的。<br>
+        <strong>警告:</strong> LYMAは価格帯が日本市場に合わない。Mito Redは一般消費者訴求が弱い。両方除外推奨。
+      </div>
+    </div>
+  </div>
+
+  <!-- ガードン -->
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#ef4444">🛡️</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#ef4444">ガードン</span>
+        <span class="tier tier-l2">L2</span>
+        <span style="color:#475569">品質管理・リスクリーダー</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#ef4444">
+        L1レビュー結果 — ヒトミA/キロクB（まだ出番なし）<br><br>
+        <strong>⚠️ 重大リスク警告:</strong><br><br>
+        <strong>薬機法リスク:</strong><br>
+        ・「医療機器」に該当するか否かが最大の関門。美容機器という分類は薬機法に存在しない<br>
+        ・マイクロカレント（ZIIP/NuFACE）: 「人の身体の構造・機能に影響を及ぼす」に該当する可能性あり → 都道府県薬務課に事前相談必須<br>
+        ・レッドライト（Joovv）: 同様に医療機器該当の可能性。ただし波長帯によっては「雑貨」扱いの判例もあり<br>
+        ・赤外線サウナブランケット（HigherDOSE）: 加温目的のため医療機器リスクは相対的に低い<br><br>
+        <strong>PSE法:</strong><br>
+        ・電動・電熱式は全てPSE対象。ACアダプタは「特定電気用品」（116品目）に該当する可能性<br>
+        ・HigherDOSEの120V問題は安全性に直結 — PSE取得不可の可能性<br><br>
+        <strong>広告規制:</strong><br>
+        ・「FDA承認」を日本で訴求することは景表法違反のおそれ。「米国FDA認証デバイス」等の表現要検討<br><br>
+        <strong>ハルシネーション警告:</strong> バズ美が言及した「セレーナ・ゴメスがHigherDOSE使用」は2021年時点の情報。最新のアンバサダー契約は要確認。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Phase 3: キロク — 議事録 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">📝 Phase 3: キロク — 10案件 → 5案件スクリーニング</div>
+
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#06b6d4">📝</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#06b6d4">キロク</span>
+        <span class="tier tier-l1">L1</span>
+        <span style="color:#475569">議事録・記録</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#06b6d4">
+        <strong>スクリーニング結果（12 → 5案件に絞り込み）:</strong>
+        <table class="eval-table">
+          <tr><th>製品</th><th>日本未上陸</th><th>粗利30%+</th><th>薬機法</th><th>SNSバズ</th><th>電圧OK</th><th>結果</th></tr>
+          <tr><td>ZIIP Halo</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-partial">⚠️</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-yes">通過</td></tr>
+          <tr><td>Joovv Solo/Mini</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-partial">⚠️</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-yes">通過</td></tr>
+          <tr><td>HigherDOSE</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-no">❌</td><td class="mark-partial">条件付</td></tr>
+          <tr><td>NuFACE Trinity+</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-partial">⚠️</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-partial">候補</td></tr>
+          <tr><td>Bon Charge</td><td class="mark-yes">✅</td><td class="mark-partial">△</td><td class="mark-partial">⚠️</td><td class="mark-no">❌</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+          <tr><td>Mito Red</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-partial">⚠️</td><td class="mark-no">❌</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+          <tr><td>MiHIGH</td><td class="mark-yes">✅</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-partial">△</td><td class="mark-no">❌</td><td class="mark-no">除外</td></tr>
+          <tr><td>LYMA Laser</td><td class="mark-yes">✅</td><td class="mark-yes">✅</td><td class="mark-partial">⚠️</td><td class="mark-no">❌</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+          <tr><td>Heat Healer</td><td class="mark-yes">✅</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-no">❌</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+          <tr><td>Sensica</td><td class="mark-yes">✅</td><td class="mark-partial">△</td><td class="mark-partial">⚠️</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+          <tr><td>Opove Apex</td><td class="mark-partial">△</td><td class="mark-partial">△</td><td class="mark-yes">✅</td><td class="mark-no">❌</td><td class="mark-yes">✅</td><td class="mark-no">除外</td></tr>
+        </table>
+        <strong>合意度: 85%</strong> — ZIIP Haloは全員一致。Joovvはガードンの薬機法懸念あり。HigherDOSEは電圧問題の解決が条件。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Phase 4: L3 最終判断 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">👑 Phase 4: まとめ（統括）— 最終判断</div>
+
+  <div class="speech">
+    <div class="speech-avatar" style="border-color:#d97706">👑</div>
+    <div class="speech-body">
+      <div class="speech-meta">
+        <span class="name" style="color:#d97706">まとめ</span>
+        <span class="tier tier-l3">L3</span>
+        <span style="color:#475569">統括・最終意思決定</span>
+      </div>
+      <div class="speech-text" style="border-left-color:#d97706">
+        L2リーダー3名の提言を統合し、最終判断を下します。<br>
+        ミライの戦略評価、ソロバンの収益分析、ガードンのリスク警告を全て考慮しました。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 最終結果: 3案件 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="verdict-card">
+  <div class="verdict-label">FINAL VERDICT — 3案件絞り込み結果</div>
+  <div class="verdict-badges">
+    <div class="verdict-badge badge-go">GO</div>
+    <div style="color:#94a3b8;display:flex;align-items:center;font-size:13px">確信度 82%</div>
+  </div>
+</div>
+
+<!-- 案件1: 最優先 -->
+<div class="priority-card priority-1">
+  <span class="priority-label pl-1">🔴 最優先（Priority 1）</span>
+  <div class="product-name">ZIIP Halo 2.0 — マイクロカレント美顔器</div>
+  <div class="product-origin">🇺🇸 米国 / ZIIP Beauty Inc. / 小売価格 $399</div>
+
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">想定販売価格</div><div class="metric-value">¥55,000</div></div>
+    <div class="metric"><div class="metric-label">想定粗利率</div><div class="metric-value green">36%</div></div>
+    <div class="metric"><div class="metric-label">初期投資</div><div class="metric-value">¥300万</div></div>
+    <div class="metric"><div class="metric-label">BEP</div><div class="metric-value">150台</div></div>
+    <div class="metric"><div class="metric-label">回収期間</div><div class="metric-value green">6ヶ月</div></div>
+    <div class="metric"><div class="metric-label">バズ力</div><div class="metric-value green">★★★★★</div></div>
+  </div>
+
+  <div style="font-size:13px;color:#cbd5e1;margin-bottom:12px">
+    <strong style="color:#fca5a5">選定理由:</strong><br>
+    ① FDA承認済み医療グレードマイクロカレント — 日本の美容皮膚科医からの推薦が狙える<br>
+    ② 4.8★/1,374レビュー — 消費者信頼の数値的裏付け<br>
+    ③ 100-240V対応・68g軽量 — 物流・PSEリスク最小<br>
+    ④ NY美容皮膚科医開発のストーリー — LP・SNSマーケティングの訴求力最強<br>
+    ⑤ 日本正規代理店なし — 独占代理権交渉の余地あり
+  </div>
+
+  <div class="risk-item">
+    <span class="risk-icon">⚠️</span>
+    <div>
+      <div class="risk-text">薬機法リスク: マイクロカレントが「医療機器」に該当する可能性。都道府県薬務課への事前相談が必須。医療機器非該当の判定を得られれば最速で参入可能。</div>
+    </div>
+  </div>
+
+  <div class="decision-item">
+    <span class="decision-check">✅</span>
+    <div>
+      <div class="decision-text">即座にZIIP Beauty本社にコンタクトし、日本独占代理店契約の打診を開始</div>
+      <div class="decision-agent">まとめ / 最優先アクション</div>
+    </div>
+  </div>
+</div>
+
+<!-- 案件2: 優先 -->
+<div class="priority-card priority-2">
+  <span class="priority-label pl-2">🟡 優先（Priority 2）</span>
+  <div class="product-name">Joovv Solo 3.0 / Mini 3.0 — レッドライトセラピーパネル</div>
+  <div class="product-origin">🇺🇸 米国 / Joovv Inc. / Solo $1,699 / Mini $1,099</div>
+
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">想定販売価格(Mini)</div><div class="metric-value">¥148,000</div></div>
+    <div class="metric"><div class="metric-label">想定粗利率</div><div class="metric-value green">39%</div></div>
+    <div class="metric"><div class="metric-label">初期投資</div><div class="metric-value">¥500万</div></div>
+    <div class="metric"><div class="metric-label">BEP</div><div class="metric-value">87台</div></div>
+    <div class="metric"><div class="metric-label">回収期間</div><div class="metric-value amber">9ヶ月</div></div>
+    <div class="metric"><div class="metric-label">バズ力</div><div class="metric-value green">★★★★☆</div></div>
+  </div>
+
+  <div style="font-size:13px;color:#cbd5e1;margin-bottom:12px">
+    <strong style="color:#fde68a">選定理由:</strong><br>
+    ① レッドライト市場は2032年まで年13.7%成長 — 最も成長率の高いセグメント<br>
+    ② IEC 60601医療機器安全基準認証済み — 品質の裏付け<br>
+    ③ バイオハッカー/フィットネス層という美容機器と異なるセグメントにリーチ<br>
+    ④ 日本完全未上陸 — セカイモン個人輸入しか手段がない<br>
+    ⑤ 高単価(¥148,000)で粗利額が大きい — 少量販売でも収益化可能
+  </div>
+
+  <div class="risk-item">
+    <span class="risk-icon">⚠️</span>
+    <div>
+      <div class="risk-text">薬機法: 「赤色光による細胞活性化」が医療機器定義に抵触する可能性。ただし波長帯によっては「雑貨」判定の前例あり。薬事コンサル起用を推奨。</div>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-icon">⚠️</span>
+    <div>
+      <div class="risk-text">物流: 大型パネル（Solo: 24×8インチ/7kg）の倉庫コスト月10万円追加。Miniから展開開始を推奨。</div>
+    </div>
+  </div>
+
+  <div class="decision-item">
+    <span class="decision-check">✅</span>
+    <div>
+      <div class="decision-text">薬事コンサルタントへの相談と並行して、Joovv社に代理店打診。Miniモデルからスモールスタート。</div>
+      <div class="decision-agent">まとめ / 優先アクション</div>
+    </div>
+  </div>
+</div>
+
+<!-- 案件3: 検討 -->
+<div class="priority-card priority-3">
+  <span class="priority-label pl-3">🔵 検討（Priority 3）</span>
+  <div class="product-name">HigherDOSE Infrared Sauna Blanket V4 — 赤外線サウナブランケット</div>
+  <div class="product-origin">🇺🇸 米国 / HigherDOSE Inc. / 小売価格 $699</div>
+
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">想定販売価格</div><div class="metric-value">¥110,000</div></div>
+    <div class="metric"><div class="metric-label">想定粗利率</div><div class="metric-value green">41%</div></div>
+    <div class="metric"><div class="metric-label">初期投資</div><div class="metric-value">¥400万</div></div>
+    <div class="metric"><div class="metric-label">BEP</div><div class="metric-value">89台</div></div>
+    <div class="metric"><div class="metric-label">回収期間</div><div class="metric-value amber">9ヶ月</div></div>
+    <div class="metric"><div class="metric-label">バズ力</div><div class="metric-value green">★★★★★</div></div>
+  </div>
+
+  <div style="font-size:13px;color:#cbd5e1;margin-bottom:12px">
+    <strong style="color:#93c5fd">選定理由:</strong><br>
+    ① 粗利率41%で3案件中最高 — 収益ポテンシャル最大<br>
+    ② 日本のサウナブーム（「ととのう」文化）との親和性が極めて高い<br>
+    ③ セレブ起用実績ありのブランド力 — SNSマーケティングの素材が豊富<br>
+    ④ 薬機法リスクが3案件中最も低い（加温目的 = 医療機器非該当の可能性高）<br>
+    ⑤ 競合SANUKKUが¥78,000で展開中 — 市場の存在は証明済み
+  </div>
+
+  <div class="risk-item">
+    <span class="risk-icon">🔴</span>
+    <div>
+      <div class="risk-text">致命的課題: 120V仕様。日本100Vでは動作しないか出力が低下する。HigherDOSE社に100V/日本仕様OEM生産を交渉するか、PSE取得済み変圧器の同梱が必要。この課題が解決しない限りGO判断は出せない。</div>
+    </div>
+  </div>
+
+  <div class="decision-item">
+    <span class="decision-check">✅</span>
+    <div>
+      <div class="decision-text">HigherDOSE社に①日本100V仕様の生産可否 ②変圧器同梱モデルの許可 を確認。回答次第で優先度をP2に昇格。</div>
+      <div class="decision-agent">まとめ / 条件付きアクション</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 決定ボード -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">✅ 決定ボード — 次のアクション</div>
+
+  <div class="decision-item"><span class="decision-check">1️⃣</span><div><div class="decision-text"><strong>最優先:</strong> ZIIP Beauty社への日本独占代理店コンタクト開始</div><div class="decision-agent">担当: 営業 / 期限: 1週間以内</div></div></div>
+  <div class="decision-item"><span class="decision-check">2️⃣</span><div><div class="decision-text"><strong>最優先:</strong> 薬事コンサルタントにマイクロカレント・レッドライトの薬機法分類を相談</div><div class="decision-agent">担当: 法務 / 期限: 2週間以内</div></div></div>
+  <div class="decision-item"><span class="decision-check">3️⃣</span><div><div class="decision-text"><strong>優先:</strong> Joovv社への代理店打診（Mini 3.0 からのスモールスタート提案）</div><div class="decision-agent">担当: 営業 / 期限: 2週間以内</div></div></div>
+  <div class="decision-item"><span class="decision-check">4️⃣</span><div><div class="decision-text"><strong>検討:</strong> HigherDOSE社に100V対応の可否を確認</div><div class="decision-agent">担当: 営業+技術 / 期限: 3週間以内</div></div></div>
+  <div class="decision-item"><span class="decision-check">5️⃣</span><div><div class="decision-text"><strong>並行:</strong> PSE認証取得プロセスの見積もり（費用・期間）を認証機関に問い合わせ</div><div class="decision-agent">担当: 品質管理 / 期限: 2週間以内</div></div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 反対意見 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">⚖️ 反対意見・留保事項</div>
+  <div class="risk-item">
+    <span class="risk-icon">🛡️</span>
+    <div>
+      <div class="risk-text"><strong>ガードン:</strong> 薬機法の判断は製品個別で異なり、都道府県によって解釈が分かれる場合がある。「たぶん大丈夫」で進めず、必ず公式の事前相談を経てから投資判断すべき。最悪の場合、医療機器クラスII以上に分類され、製造販売業許可取得に1年以上かかる。</div>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-icon">🧮</span>
+    <div>
+      <div class="risk-text"><strong>ソロバン:</strong> 為替リスクに注意。1ドル=150円で試算しているが、円安が進めば粗利が圧縮される。ヘッジコストまたはドル建て契約を検討すべき。</div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <p>Generated by AI Agent Council — 12 Agents × 3-Tier Hierarchy × Gemini API</p>
+  <p>This document is an AI-generated analysis. All data should be independently verified before making business decisions.</p>
+</div>
+
+</div>
+</body>
+</html>

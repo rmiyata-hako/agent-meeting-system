@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="30">
+<title>ケーススタディ議事録 — Yogibo分析</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,"Noto Sans JP",sans-serif;
+    background:#f8fafc;
+    color:#1e293b;
+    line-height:1.8;
+    font-size:15px;
+    padding-bottom:80px;
+  }
+
+  /* Sticky Header */
+  .sticky-header{
+    position:sticky;top:0;z-index:100;
+    background:linear-gradient(135deg,#1e293b 0%,#334155 100%);
+    color:#fff;
+    padding:14px 20px;
+    box-shadow:0 2px 12px rgba(0,0,0,.15);
+  }
+  .sticky-header h1{
+    font-size:16px;font-weight:700;letter-spacing:.02em;
+  }
+  .sticky-header .subtitle{
+    font-size:12px;opacity:.75;margin-top:2px;
+  }
+
+  /* Meta info block */
+  .meta-block{
+    max-width:800px;margin:20px auto;padding:0 16px;
+  }
+  .meta-card{
+    background:#fff;border-radius:12px;padding:20px;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+    border-left:4px solid #64748b;
+  }
+  .meta-card p{
+    font-size:13px;color:#475569;margin-bottom:6px;
+  }
+  .meta-card p:last-child{margin-bottom:0}
+  .meta-card strong{color:#1e293b}
+
+  /* Section Container */
+  .sections{
+    max-width:800px;margin:0 auto;padding:0 16px;
+  }
+
+  /* Agent Card */
+  .agent-card{
+    background:#fff;
+    border-radius:14px;
+    margin-bottom:24px;
+    box-shadow:0 1px 6px rgba(0,0,0,.06);
+    overflow:hidden;
+    transition:box-shadow .2s;
+  }
+  .agent-card:hover{
+    box-shadow:0 4px 16px rgba(0,0,0,.1);
+  }
+  .agent-header{
+    display:flex;align-items:center;gap:14px;
+    padding:18px 20px;
+    color:#fff;
+  }
+  .agent-icon{
+    font-size:36px;
+    width:56px;height:56px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.2);
+    border-radius:14px;
+    flex-shrink:0;
+  }
+  .agent-header-text h2{
+    font-size:18px;font-weight:700;margin:0;line-height:1.3;
+  }
+  .agent-header-text .phase-label{
+    font-size:12px;opacity:.85;
+  }
+  .agent-body{
+    padding:20px;
+  }
+
+  /* Sub-headings inside cards */
+  .agent-body h3{
+    font-size:16px;font-weight:700;
+    margin:20px 0 10px;
+    padding-bottom:6px;
+    border-bottom:2px solid #e2e8f0;
+    color:#1e293b;
+  }
+  .agent-body h3:first-child{margin-top:0}
+
+  /* Colored left border for phase-related sub-headings */
+  .phase-heading{
+    border-bottom:none !important;
+    border-left:4px solid var(--agent-color,#64748b);
+    padding-left:12px;
+    margin:24px 0 12px;
+  }
+  .phase-heading:first-child{margin-top:0}
+
+  /* Highlight box */
+  .highlight-box{
+    background:#fffbeb;
+    border-left:4px solid #f59e0b;
+    padding:12px 16px;
+    border-radius:0 8px 8px 0;
+    margin:12px 0;
+    font-weight:600;
+    font-size:14px;
+    line-height:1.7;
+  }
+
+  /* Warning box */
+  .warning-box{
+    background:#fef2f2;
+    border-left:4px solid #ef4444;
+    padding:12px 16px;
+    border-radius:0 8px 8px 0;
+    margin:12px 0;
+    font-weight:600;
+    font-size:14px;
+    color:#991b1b;
+  }
+
+  /* Blockquote */
+  blockquote{
+    background:linear-gradient(135deg,#f0f9ff,#eff6ff);
+    border-left:4px solid #0ea5e9;
+    padding:16px 20px;
+    border-radius:0 10px 10px 0;
+    margin:16px 0;
+    font-size:14px;
+    line-height:1.8;
+    color:#1e40af;
+    font-weight:500;
+  }
+
+  /* Lists */
+  .agent-body ul{
+    padding-left:20px;margin:10px 0;
+    list-style:disc;
+  }
+  .agent-body li{
+    margin-bottom:8px;font-size:14px;line-height:1.7;
+  }
+  .agent-body li strong{color:#1e293b}
+
+  /* Ordered lists */
+  .agent-body ol{
+    counter-reset:item;
+    list-style:none;
+    padding-left:0;
+    margin:10px 0;
+  }
+  .agent-body ol > li{
+    counter-increment:item;
+    padding-left:32px;
+    position:relative;
+  }
+  .agent-body ol > li::before{
+    content:counter(item);
+    position:absolute;left:0;top:2px;
+    width:22px;height:22px;
+    background:var(--agent-color,#64748b);
+    color:#fff;
+    border-radius:50%;
+    font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    line-height:1;
+  }
+
+  /* Paragraphs */
+  .agent-body p{
+    font-size:14px;margin:8px 0;line-height:1.8;
+  }
+
+  /* Tables */
+  .table-wrapper{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    margin:14px 0;
+    border-radius:10px;
+    border:1px solid #e2e8f0;
+  }
+  .table-wrapper table{
+    width:100%;min-width:500px;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .table-wrapper th{
+    background:#f1f5f9;
+    font-weight:700;
+    text-align:left;
+    padding:10px 14px;
+    border-bottom:2px solid #cbd5e1;
+    white-space:nowrap;
+    color:#334155;
+  }
+  .table-wrapper td{
+    padding:10px 14px;
+    border-bottom:1px solid #e2e8f0;
+    vertical-align:top;
+  }
+  .table-wrapper tr:last-child td{border-bottom:none}
+  .table-wrapper tr:hover td{background:#f8fafc}
+
+  /* Skill tags */
+  .skill-tag{
+    display:inline-block;
+    background:#eef2ff;
+    color:#4338ca;
+    font-size:11px;
+    font-weight:700;
+    padding:2px 8px;
+    border-radius:4px;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+
+  /* Priority badges */
+  .priority-high{
+    display:inline-block;background:#dc2626;color:#fff;
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
+  }
+  .priority-mid{
+    display:inline-block;background:#f59e0b;color:#fff;
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
+  }
+  .priority-low{
+    display:inline-block;background:#64748b;color:#fff;
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;
+  }
+
+  /* Agent quote blocks in final report */
+  .agent-quote{
+    padding:12px 16px;
+    border-radius:10px;
+    margin:10px 0;
+    font-size:13px;
+    line-height:1.7;
+    border-left:4px solid;
+  }
+
+  /* Divider */
+  .divider{
+    height:1px;background:#e2e8f0;margin:16px 0;
+  }
+
+  /* Footer */
+  .footer{
+    max-width:800px;margin:30px auto;padding:0 16px;text-align:center;
+  }
+  .footer-card{
+    background:#1e293b;color:#94a3b8;
+    border-radius:12px;padding:20px;
+    font-size:12px;line-height:1.7;
+  }
+  .footer-card strong{color:#e2e8f0}
+
+  /* Floating refresh button */
+  .fab-refresh{
+    position:fixed;
+    bottom:24px;right:24px;
+    width:52px;height:52px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#3b82f6,#2563eb);
+    color:#fff;
+    border:none;
+    box-shadow:0 4px 14px rgba(59,130,246,.4);
+    cursor:pointer;
+    font-size:22px;
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .2s,box-shadow .2s;
+    z-index:200;
+  }
+  .fab-refresh:hover{
+    transform:scale(1.1);
+    box-shadow:0 6px 20px rgba(59,130,246,.5);
+  }
+  .fab-refresh:active{transform:scale(.95)}
+  .fab-refresh svg{width:24px;height:24px;fill:currentColor}
+
+  /* Responsive tweaks */
+  @media(max-width:640px){
+    .sticky-header{padding:12px 16px}
+    .sticky-header h1{font-size:14px}
+    .agent-header{padding:14px 16px;gap:10px}
+    .agent-icon{width:46px;height:46px;font-size:28px;border-radius:10px}
+    .agent-header-text h2{font-size:16px}
+    .agent-body{padding:16px}
+    .agent-body h3{font-size:15px}
+    .table-wrapper table{font-size:12px}
+    .table-wrapper th,.table-wrapper td{padding:8px 10px}
+  }
+
+  /* Scrollbar styling for tables */
+  .table-wrapper::-webkit-scrollbar{height:6px}
+  .table-wrapper::-webkit-scrollbar-track{background:#f1f5f9;border-radius:3px}
+  .table-wrapper::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- Sticky Header -->
+<header class="sticky-header">
+  <h1>&#x1F4CB; ケーススタディ議事録</h1>
+  <div class="subtitle">Yogibo（ヨギボー）の日本市場での成功要因 — ビーズソファ市場の類似商品との比較分析</div>
+</header>
+
+<!-- Meta Info -->
+<div class="meta-block">
+  <div class="meta-card">
+    <p><strong>議題:</strong> Yogibo（ヨギボー）の日本市場での成功要因 — ビーズソファ市場の類似商品との比較分析</p>
+    <p><strong>セッションID:</strong> yogibo_analysis</p>
+    <p><strong>開始日時:</strong> 2026年03月01日 14:30:00</p>
+    <p><strong>参加エージェント:</strong> ハンター / シパイ / ソロバン / バズ美 / ガードン / シッパー / ネゴシ / ヒトミ / ミライ / ニホンゴ / ツッコミ / ネガくん / オヤカタ / まとめ / キロク</p>
+  </div>
+</div>
+
+<div class="sections">
+
+<!-- ==================== エージェントプロフィール ==================== -->
+<div class="agent-card" style="--agent-color:#334155">
+  <div class="agent-header" style="background:linear-gradient(135deg,#334155,#1e293b)">
+    <div class="agent-icon">&#x1F916;</div>
+    <div class="agent-header-text">
+      <h2>エージェントプロフィール — 役割と得意分野</h2>
+      <div class="phase-label">全15エージェント × 3つのLLM × 7フェーズ</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">メンバー一覧</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>あだ名</th><th>正式名</th><th>Phase</th><th>役割・得意分野</th><th>LLM</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>&#x1F50D; ハンター</strong></td><td>リサーチャー</td><td style="white-space:nowrap">1: 調査</td><td>海外商品サーチャー。世界中の原石を嗅ぎ当てる。北米・欧州・韓国・中国・東南アジアのEC・SNSから日本未上陸商品を発掘</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x1F4CA; ソロバン</strong></td><td>PL評価者</td><td style="white-space:nowrap">2: 並列評価</td><td>収益性・市場性評価。算盤を弾いて損得を冷静に見極める。粗利率・損益分岐・初期投資・スケーラビリティを定量分析</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x1F4E3; バズ美</strong></td><td>マーケター</td><td style="white-space:nowrap">2: 並列評価</td><td>日本ECマーケティング戦略。日本市場でバズらせるプロ。ターゲット設定・SNS戦略・広告・キャッチコピー・ローンチ戦略を立案</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x2696;&#xFE0F; ガードン</strong></td><td>法務・規制チェッカー</td><td style="white-space:nowrap">2: 並列評価</td><td>法規制・コンプライアンス確認。規制の壁から事業を守る門番。薬機法・食品衛生法・PSE・関税・表示義務を網羅チェック</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x1F6A2; シッパー</strong></td><td>サプライチェーンAI</td><td style="white-space:nowrap">2: 並列評価</td><td>物流・通関・調達戦略。海の向こうから届けるプロ。仕入れ方法・MOQ・輸送手段・FBA活用・在庫リスクを設計</td><td style="color:#22c55e;font-weight:700">Groq</td></tr>
+          <tr><td><strong>&#x1F464; ヒトミ</strong></td><td>消費者インサイトAI</td><td style="white-space:nowrap">3: 深堀り</td><td>消費者需要検証・レビュー分析。消費者の本音を見抜く瞳。海外レビュー解析・日本適合度・口コミ拡散ポテンシャルを判定</td><td style="color:#22c55e;font-weight:700">Groq</td></tr>
+          <tr><td><strong>&#x1F4C8; ミライ</strong></td><td>トレンドアナリスト</td><td style="white-space:nowrap">3: 深堀り</td><td>中長期トレンド分析・一過性判定。3年後の未来を読む先見の目。バズの持続性・参入タイミング・ディスラプションリスクを予測</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x1F9E0; ツッコミ</strong></td><td>メタ認知AI</td><td style="white-space:nowrap">4: 検証</td><td>議論品質モニタリング・バイアス検知。甘い判断に容赦なくツッコむ。Anti-Satisficing原則に基づき盲点・後知恵バイアス・集団思考を検出</td><td style="color:#f59e0b;font-weight:700">Claude</td></tr>
+          <tr><td><strong>&#x1F4DD; まとめ</strong></td><td>議事録AI</td><td style="white-space:nowrap">5: 記録</td><td>中立的な議事録・Skill抽出。議論を中立にまとめる書記。全エージェントの発言を客観記録し、再利用可能なSkill（学び）を蓄積</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr><td><strong>&#x1F4C4; キロク</strong></td><td>レポーターAI</td><td style="white-space:nowrap">6: レポート</td><td>時報・日報レポート → Googleドキュメント。時報（3時間ごと）と日報（毎日）をビジネスパーソン向けに簡潔にまとめて出力</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr style="background:#fefce8"><td><strong>&#x1F480; シパイ</strong></td><td>フェイラーアナリスト</td><td style="white-space:nowrap">1: 調査</td><td>失敗事例の専門家。死屍累々の戦場から教訓を拾う。日本市場で失敗した海外→日本の輸入商品を類型化し、生存者バイアスを補正</td><td style="color:#3b82f6;font-weight:700">Gemini</td></tr>
+          <tr style="background:#fefce8"><td><strong>&#x1F91D; ネゴシ</strong></td><td>ディールストラクチャラー</td><td style="white-space:nowrap">2: 並列評価</td><td>交渉・契約設計のプロ。海外ブランドとの代理店契約の条件設計、交渉レバレッジの特定、独占権の取り方を戦略的に分析</td><td style="color:#f59e0b;font-weight:700">Claude</td></tr>
+          <tr style="background:#fefce8"><td><strong>&#x1F38C; ニホンゴ</strong></td><td>カルチャーフィットAI</td><td style="white-space:nowrap">3: 深堀り</td><td>日本文化の翻訳者。海外商品の日本文化適合度を多角評価。住居サイズ・四季・贈答文化・和の美意識・素材感覚から適合度を判定</td><td style="color:#22c55e;font-weight:700">Groq</td></tr>
+          <tr style="background:#fefce8"><td><strong>&#x26B0;&#xFE0F; ネガくん</strong></td><td>ネガティブアナリスト</td><td style="white-space:nowrap">4: 検証</td><td>最悪を想像するネガティブ思考のプロ。「1年後にこのプロジェクトが大失敗した。なぜ？」を全力で想像。最悪シナリオの描写とKill Criteria（撤退基準）を設定</td><td style="color:#f59e0b;font-weight:700">Claude</td></tr>
+          <tr style="background:#fefce8"><td><strong>&#x1F451; オヤカタ</strong></td><td>チーフデシジョンメーカー</td><td style="white-space:nowrap">4.5: 意思決定</td><td>最終決裁者。全エージェントの分析を統合し、Go / No-Go / 条件付きGoの意思決定を下す。リソース配分と期限を設定</td><td style="color:#f59e0b;font-weight:700">Claude</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">マルチLLM構成</h3>
+    <ul>
+      <li><strong style="color:#3b82f6">Gemini（メイン）:</strong> ハンター、シパイ、ソロバン、バズ美、ガードン、ミライ、まとめ、キロク — 大量テキスト処理・広範な知識ベース</li>
+      <li><strong style="color:#f59e0b">Claude（高品質推論）:</strong> ツッコミ、ネゴシ、ネガくん、オヤカタ — 複雑な論理推論・交渉設計・メタ認知・意思決定</li>
+      <li><strong style="color:#22c55e">Groq（高速推論）:</strong> シッパー、ヒトミ、ニホンゴ — 並列実行時のレスポンス速度を活かした深堀り分析</li>
+    </ul>
+
+    <h3 class="phase-heading">パイプライン構成（7フェーズ）</h3>
+    <ol>
+      <li><strong>Phase 1（調査）:</strong> ハンター（成功事例）とシパイ（失敗事例）が並列で海外市場をスキャン</li>
+      <li><strong>Phase 2（並列評価）:</strong> ソロバン・バズ美・ガードン・シッパー・ネゴシが5つの視点から同時評価</li>
+      <li><strong>Phase 3（深堀り）:</strong> ヒトミ（JTBD分析）・ミライ・ニホンゴが消費者・トレンド・文化を深堀り</li>
+      <li><strong>Phase 4（検証）:</strong> ツッコミがAnti-Satisficing検証 → 各エージェントが反論（レッドチーム方式）。ネガくんが最悪シナリオとKill Criteriaを設定</li>
+      <li><strong>Phase 4.5（意思決定）:</strong> オヤカタが全分析を統合し、Go / No-Go / 条件付きGoの最終判断を下す</li>
+      <li><strong>Phase 5（記録）:</strong> まとめが議事録をまとめ、再利用可能なSkillを抽出</li>
+      <li><strong>Phase 6（レポート）:</strong> キロクが時報・日報を作成しGoogleドキュメントに出力</li>
+    </ol>
+
+  </div>
+</div>
+
+<!-- ==================== ハンター ==================== -->
+<div class="agent-card" style="--agent-color:#3b82f6">
+  <div class="agent-header" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+    <div class="agent-icon">&#x1F50D;</div>
+    <div class="agent-header-text">
+      <h2>ハンター（Phase 1 - 事例調査）</h2>
+      <div class="phase-label">14:30:01</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">Yogiboの基本情報</h3>
+    <ul>
+      <li><strong>発祥:</strong> 2009年、アメリカ・ニュージャージー州。創業者はEyal Levy氏</li>
+      <li><strong>日本上陸:</strong> 2014年、株式会社ウェブシャーク（大阪）が日本での独占販売権を取得</li>
+      <li><strong>カテゴリ:</strong> ビーズソファ / リラックス家具</li>
+      <li><strong>価格帯:</strong> &#165;17,380（Yogibo Mini）〜 &#165;32,780（Yogibo Max）</li>
+      <li><strong>日本での売上:</strong> 2021年度に約180億円（推定）、2020年のコロナ需要で急成長</li>
+      <li><strong>店舗数:</strong> 全国100店舗以上（2024年時点）、直営＋モール内テナント</li>
+      <li><strong>受賞歴:</strong> 楽天年間ランキング家具部門1位（複数年）</li>
+    </ul>
+
+    <h3 class="phase-heading">海外での展開</h3>
+    <ul>
+      <li>アメリカ本国では「ビーンバッグの進化版」として認知</li>
+      <li>中東（サウジアラビア）でも大人気 — 床に座る文化と親和性高い</li>
+      <li>韓国、台湾でも展開</li>
+    </ul>
+
+    <h3 class="phase-heading">日本の競合・類似商品</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>商品名</th><th>ブランド</th><th>価格帯</th><th>特徴</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>体にフィットするソファ</td><td>無印良品</td><td>&#165;12,980</td><td>Yogibo以前から存在。カバー展開が限定的</td></tr>
+          <tr><td>Nストレッチ</td><td>ニトリ</td><td>&#165;7,990〜</td><td>価格訴求。品質はYogiboに劣るとの声</td></tr>
+          <tr><td>ハナロロ</td><td>ハナロロ</td><td>&#165;5,000〜</td><td>Amazon中心。低価格帯</td></tr>
+          <tr><td>モグ（MOG）</td><td>MOGU</td><td>&#165;3,000〜</td><td>パウダービーズ。小型クッション中心</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">ユニークなポイント</h3>
+    <ol>
+      <li><strong>サイズ展開の豊富さ</strong> — Mini / Midi / Max / Short / Pyramid 等10種以上</li>
+      <li><strong>カバー交換可能</strong> — 17色以上のカバーで「着せ替え」できる</li>
+      <li><strong>補充ビーズ販売</strong> — へたっても復活。長期使用を前提にした設計</li>
+      <li><strong>体験型店舗</strong> — 「人をダメにする」を体験させて購入に繋げる</li>
+    </ol>
+
+  </div>
+</div>
+
+<!-- ==================== シパイ ==================== -->
+<div class="agent-card" style="--agent-color:#e11d48">
+  <div class="agent-header" style="background:linear-gradient(135deg,#e11d48,#be123c)">
+    <div class="agent-icon">&#x1F480;</div>
+    <div class="agent-header-text">
+      <h2>シパイ（Phase 1 - 失敗事例調査）</h2>
+      <div class="phase-label">14:30:05 &#x1F195; NEW</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">日本市場で失敗した海外→日本の輸入事例</h3>
+    <div class="warning-box">生存者バイアス補正: Yogiboの成功だけを見ていては、再現性の判断を誤る</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>ブランド</th><th>カテゴリ</th><th>日本参入</th><th>結果</th><th>失敗要因</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Casper</strong></td><td>マットレス</td><td>2019年</td><td>苦戦・縮小</td><td>日本の寝室は狭い。「ベッドフレームなし」文化が定着せず。体験なしのD2Cで高単価は売れない</td></tr>
+          <tr><td><strong>Blue Apron</strong></td><td>ミールキット</td><td>参入断念</td><td>日本未展開</td><td>日本は既にOisix・生協が強く、価格帯が合わない。食文化の違い（和食の繊細さ）が壁</td></tr>
+          <tr><td><strong>Brandless</strong></td><td>日用品D2C</td><td>2017年（米）</td><td>2020年倒産</td><td>「全品$3」のコンセプトが日本の100均・ドンキに勝てない。価格破壊の閾値が国によって異なる</td></tr>
+          <tr><td><strong>Traeger Grills</strong></td><td>BBQグリル</td><td>2018年頃</td><td>ニッチ止まり</td><td>日本のマンション文化でBBQは非日常。「毎週庭でBBQ」の前提が成立しない</td></tr>
+          <tr><td><strong>Peloton</strong></td><td>フィットネスバイク</td><td>未参入</td><td>日本断念</td><td>日本の住居にバイク置くスペースがない。月額課金への抵抗。ジム文化の違い</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">失敗の5大パターン（類型化）</h3>
+    <ol>
+      <li><strong>住居サイズ不適合:</strong> 大型商品は日本の住居事情（平均65m&#xB2;）に合わない。Casper、Peloton、Traegerはこのパターン。<strong>Yogiboはこの壁を「立てかけ収納」で突破した稀有な例</strong></li>
+      <li><strong>既存代替品の壁:</strong> 日本には既に優れた代替品がある分野では勝てない。Blue Apron vs Oisix、Brandless vs 100均。<strong>Yogiboが勝てたのは「ビーズソファ専門ブランド」が日本に存在しなかったから</strong></li>
+      <li><strong>文化的前提の崩壊:</strong> 「毎週BBQ」「ベッドフレーム不要」など、アメリカの生活様式を前提にした商品は日本で成立しない</li>
+      <li><strong>価格感覚のズレ:</strong> アメリカで「お得」な価格が日本では「高い」。逆に日本の100均品質はアメリカにない。国ごとの価格閾値を見誤る</li>
+      <li><strong>体験チャネルの不在:</strong> D2C（EC直販）だけで高単価商品を売ろうとして失敗。<strong>Yogiboは体験型店舗で解決したが、はこには店舗がない</strong></li>
+    </ol>
+
+    <h3 class="phase-heading">Yogiboが「失敗しなかった」理由の逆説的分析</h3>
+    <ul>
+      <li><strong>住居問題:</strong> ビーズソファは変形するため、隙間に収まる。硬い家具にはない柔軟性</li>
+      <li><strong>代替品:</strong> 無印の類似品が「市場教育」を終えていた。Yogiboは教育コスト不要で参入</li>
+      <li><strong>文化:</strong> 日本の「床座り文化」とビーズソファは相性が良い（こたつ＋Yogiboなど）</li>
+      <li><strong>価格:</strong> &#165;30,000は「ソファとして」見れば安い（通常のソファは&#165;50,000〜）</li>
+      <li><strong>体験:</strong> ウェブシャークが体験店舗に大規模投資した</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <div class="highlight-box">商品選定時に必ず「この商品はどの失敗パターンに該当するか」をチェックすべき</div>
+    <ul>
+      <li><strong>5大失敗パターンのチェックリストを商品評価に組み込む</strong></li>
+      <li><strong>「日本に強い代替品がないか」を最初に確認。あるなら撤退</strong></li>
+      <li><strong>体験チャネルなしで売れるかを実証してから仕入れを増やす</strong></li>
+      <li><strong>成功事例1件につき、必ず失敗事例2件を調べるルールを設定</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ソロバン ==================== -->
+<div class="agent-card" style="--agent-color:#22c55e">
+  <div class="agent-header" style="background:linear-gradient(135deg,#22c55e,#16a34a)">
+    <div class="agent-icon">&#x1F4CA;</div>
+    <div class="agent-header-text">
+      <h2>ソロバン（Phase 2 - PL・収益性分析）</h2>
+      <div class="phase-label">14:33:02</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">収益構造の分析</h3>
+    <p><strong>なぜ利益が出る構造なのか:</strong></p>
+    <ol>
+      <li><strong>高単価×高粗利:</strong> 原価率は推定30-35%。ビーズソファの原価はビーズ+カバー生地+縫製で比較的安い。&#165;30,000の商品で粗利&#165;19,500-21,000が見込める</li>
+      <li><strong>リピート収益モデル:</strong> カバー（&#165;5,500〜&#165;8,000）と補充ビーズ（&#165;2,750〜&#165;4,950）のリピート購入が発生。本体購入者の推定30-40%がカバーを追加購入</li>
+      <li><strong>ファミリー展開:</strong> 1人が買うと家族分が追加される。客単価は実質1.5〜2倍に膨らむ</li>
+      <li><strong>直営店舗モデル:</strong> モール内テナントは集客コストが低い。体験→購入の転換率が高い（推定来店者の15-20%が購入）</li>
+    </ol>
+
+    <h3 class="phase-heading">無印良品との価格比較</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>項目</th><th>Yogibo Max</th><th>無印 体にフィットするソファ</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>価格</td><td>&#165;32,780</td><td>&#165;12,980</td></tr>
+          <tr><td>推定原価率</td><td>30-35%</td><td>40-45%</td></tr>
+          <tr><td>推定粗利</td><td>&#165;21,000〜</td><td>&#165;7,000〜</td></tr>
+          <tr><td>リピート収益</td><td>カバー・ビーズ</td><td>カバーのみ（種類少）</td></tr>
+          <tr><td>体験販売</td><td>専用店舗あり</td><td>店舗内の一角</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>代理店モデルの参考:</strong> ウェブシャークは独占販売権を取得し、製造は海外委託。マーケティングと販売に特化した「ファブレス型」</li>
+      <li><strong>DRM親和性:</strong> Yogiboは「体験」がキモ。記事LPで「人をダメにする」体験を疑似体現できれば、EC販売でもCVR向上が見込める</li>
+      <li><strong>リピートLTV:</strong> 代理店で扱う商品はカバーやリフィル等のリピート収益が取れるものが理想的</li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== バズ美 ==================== -->
+<div class="agent-card" style="--agent-color:#f59e0b">
+  <div class="agent-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+    <div class="agent-icon">&#x1F4E3;</div>
+    <div class="agent-header-text">
+      <h2>バズ美（Phase 2 - マーケティング分析）</h2>
+      <div class="phase-label">14:33:15</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">ブランディング成功の核心</h3>
+    <div class="highlight-box">「人をダメにするソファ」— この一言が全てを変えた</div>
+    <ol>
+      <li><strong>キャッチコピーの天才性:</strong> 「ビーズソファ」というカテゴリ名ではなく、「人をダメにするソファ」という体験価値で訴求。これがSNSで自然拡散した</li>
+      <li><strong>無印良品が先に「人をダメにするソファ」で話題になっていた</strong> → Yogiboはこの既存認知に乗っかりつつ、「もっとダメにする」というポジショニングを取った</li>
+      <li><strong>UGC（ユーザー生成コンテンツ）の自然発生:</strong> 「ヨギボー買ったら動けなくなった」系の投稿がSNSで大量に拡散</li>
+    </ol>
+
+    <h3 class="phase-heading">プロモーション施策</h3>
+    <ul>
+      <li><strong>体験型店舗が最大の広告:</strong> 商業施設の人通りの多い場所に出店。「座ってみて」と声をかけるだけで興味を引く</li>
+      <li><strong>YouTube/TikTok:</strong> 「Yogiboに座ったら起き上がれない」系動画が多数バイラル</li>
+      <li><strong>テレビ露出:</strong> バラエティ番組で芸能人が座って「これヤバい」→認知爆発</li>
+      <li><strong>楽天/Amazonレビュー:</strong> 平均★4.3以上。レビュー数が圧倒的で信頼性が高い</li>
+    </ul>
+
+    <h3 class="phase-heading">DRM・記事LP的な成功ポイント</h3>
+    <ul>
+      <li><strong>Before/After訴求が効く:</strong> 「硬いソファで腰が痛い」→「Yogiboで包まれる」</li>
+      <li><strong>五感訴求:</strong> 「触れた瞬間わかる」系の記事LP向きの商材</li>
+      <li><strong>価格ハードルの超え方:</strong> 「毎日8時間使うものに3万円は安い」というリフレーミング</li>
+      <li><strong>ギフト需要:</strong> 父の日・母の日・クリスマスのプレゼント需要が大きい</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>記事LPで「体験を疑似体現する」スキルが活きる商材カテゴリを狙うべき</strong></li>
+      <li><strong>UGCが生まれやすい商品 = SNS広告のCPAが下がりやすい</strong></li>
+      <li><strong>「カテゴリ名」ではなく「体験価値」で訴求できる商品を選ぶのが鉄則</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ガードン ==================== -->
+<div class="agent-card" style="--agent-color:#ef4444">
+  <div class="agent-header" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+    <div class="agent-icon">&#x2696;&#xFE0F;</div>
+    <div class="agent-header-text">
+      <h2>ガードン（Phase 2 - 法務・規制分析）</h2>
+      <div class="phase-label">14:33:20</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">クリアした規制</h3>
+    <ol>
+      <li><strong>家庭用品品質表示法:</strong> ソファ（クッション）の素材表示、取扱い注意表示が必要。Yogiboは中材（発泡ビーズ）とカバー素材を適切に表示</li>
+      <li><strong>消費生活用製品安全法:</strong> 特定製品には該当しないが、一般的な安全基準は求められる</li>
+      <li><strong>有害物質規制:</strong> ビーズの素材（EPS = 発泡スチロール）は安全性が確認済み</li>
+      <li><strong>輸入通関:</strong> HS Code的にはクッション類。関税率は比較的低い（3-5%程度）</li>
+    </ol>
+
+    <h3 class="phase-heading">法的に巧みだった点</h3>
+    <ul>
+      <li><strong>薬機法・食品衛生法に非該当:</strong> インテリア・家具カテゴリは規制ハードルが相対的に低い</li>
+      <li><strong>PL保険:</strong> 万一の事故（ビーズ吸引等）に備えてPL保険に加入（推定）</li>
+      <li><strong>表示の工夫:</strong> 「人をダメにする」は広告表現としてグレーゾーンではない（景品表示法上問題なし）</li>
+    </ul>
+
+    <h3 class="phase-heading">同カテゴリで新規参入する場合の注意点</h3>
+    <ul>
+      <li><strong>家庭用品品質表示法の遵守:</strong> 素材表示・洗濯表示は必須</li>
+      <li><strong>ビーズの安全性:</strong> 乳幼児がビーズを吸引する事故が過去に報告あり → 注意書き・安全設計が重要</li>
+      <li><strong>消防法:</strong> 発泡スチロールは可燃性。難燃性基準のクリアが望ましい</li>
+      <li><strong>規制ハードルの低さ = 参入障壁の低さ</strong> → 模倣品対策（意匠・商標）が重要</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>規制の軽いカテゴリ（インテリア・雑貨）は参入コストが低く、スピード勝負しやすい</strong></li>
+      <li><strong>逆に、規制が重い商材（食品・化粧品・医療機器）は参入障壁が高い分、参入後の優位性も高い</strong></li>
+      <li><strong>代理店として扱う場合、知的財産権（意匠・商標）が現地で取得済みかの確認が重要</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== シッパー ==================== -->
+<div class="agent-card" style="--agent-color:#8b5cf6">
+  <div class="agent-header" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+    <div class="agent-icon">&#x1F6A2;</div>
+    <div class="agent-header-text">
+      <h2>シッパー（Phase 2 - 物流・サプライチェーン分析）</h2>
+      <div class="phase-label">14:33:25</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">Yogiboのサプライチェーン構造</h3>
+    <ol>
+      <li><strong>製造:</strong> 海外工場（中国・東南アジア推定）でOEM生産。ビーズとカバーを別々に調達</li>
+      <li><strong>輸入:</strong> 海上輸送（コンテナ）。かさばるが軽い商材 → 容積重量でコスト計算</li>
+      <li><strong>国内倉庫:</strong> 自社倉庫 + 3PL。全国100店舗への配送網を構築</li>
+      <li><strong>フルフィルメント:</strong> 自社EC + 楽天/Amazon（FBAも活用推定）</li>
+      <li><strong>ラストマイル:</strong> 大型商品のため宅配便（ヤマト便・佐川大型便）</li>
+    </ol>
+
+    <h3 class="phase-heading">物流面での成功要因</h3>
+    <ul>
+      <li><strong>軽いが大きい:</strong> ビーズソファは見た目は大きいが重量は3-8kg。輸送コストは重量ベースなら安い</li>
+      <li><strong>圧縮梱包技術:</strong> 配送時にビーズを圧縮して小さい段ボールで送る → 送料削減</li>
+      <li><strong>補充ビーズの高利益:</strong> 小さい袋で送れて粗利が高い。物流効率が非常に良い</li>
+      <li><strong>カバー交換モデル:</strong> カバーはメール便サイズ。物流コストほぼゼロに近い</li>
+    </ul>
+
+    <h3 class="phase-heading">スケール戦略</h3>
+    <ul>
+      <li><strong>初期:</strong> EC中心でスモールスタート → 在庫リスクを最小化</li>
+      <li><strong>中期:</strong> 人気カラー・サイズに絞って直営店出店 → 体験→購入のループ</li>
+      <li><strong>現在:</strong> 全国100店舗 + EC。在庫はデータに基づいて最適化</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>「軽くてかさばるが壊れにくい」商材は輸入ビジネス向き</strong> — 輸送コストを抑えやすい</li>
+      <li><strong>初期はEC（Amazon FBA）でテスト販売 → 実績ができてから直営展開、のYogiboモデルは再現性が高い</strong></li>
+      <li><strong>補充材・交換パーツがある商品 = リピート物流が安い = LTV向上</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ネゴシ ==================== -->
+<div class="agent-card" style="--agent-color:#0d9488">
+  <div class="agent-header" style="background:linear-gradient(135deg,#0d9488,#0f766e)">
+    <div class="agent-icon">&#x1F91D;</div>
+    <div class="agent-header-text">
+      <h2>ネゴシ（Phase 2 - 交渉・ディール設計分析）</h2>
+      <div class="phase-label">14:33:30 &#x1F195; NEW</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">ウェブシャークの契約構造（推定復元）</h3>
+    <div class="highlight-box">Yogibo成功の隠れた要因 = ウェブシャークが「独占販売権」を取得できたこと自体がすごい</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>契約条件</th><th>推定内容</th><th>はこへの参考度</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>独占/非独占</td><td>日本国内の独占販売権（Exclusive Distribution）</td><td><span class="priority-high">最重要</span></td></tr>
+          <tr><td>テリトリー</td><td>日本全国（オンライン＋オフライン）</td><td><span class="priority-high">最重要</span></td></tr>
+          <tr><td>最低購入量（MOQ）</td><td>年間数千万円〜億単位のコミットメント（推定）</td><td><span class="priority-mid">要注意</span></td></tr>
+          <tr><td>ロイヤリティ</td><td>売上の5-10%をYogibo本国に支払い（推定）</td><td><span class="priority-mid">要注意</span></td></tr>
+          <tr><td>マーケティング義務</td><td>年間売上の10-15%をマーケティングに投資する義務（推定）</td><td><span class="priority-low">参考</span></td></tr>
+          <tr><td>契約期間</td><td>5-10年の長期契約 + 更新オプション</td><td><span class="priority-low">参考</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">中小企業が使える交渉レバレッジ</h3>
+    <p>ウェブシャーク級の資金力がないはこが、海外ブランドとどう交渉するか:</p>
+    <ol>
+      <li><strong>「日本市場データ」を武器にする:</strong> 海外ブランドにとって日本市場は不透明。競合分析・市場規模・消費者インサイトのレポートを「お土産」として持参し、「このブランドを日本で売るならうちしかいない」と思わせる</li>
+      <li><strong>非独占からスタートして実績で独占を勝ち取る:</strong> 最初から独占は取れない。まずは非独占で販売実績を作り、「日本での売上の80%はうち経由」という事実を作ってから独占交渉</li>
+      <li><strong>記事LP力を差別化要因にする:</strong> 「うちの記事LPのCVRは業界平均の3倍」というデータを見せて、マーケティング力で勝負。ブランド側は「売ってくれる」パートナーが欲しい</li>
+      <li><strong>テストマーケティング提案:</strong> 「3ヶ月・100万円分のテスト販売 → 結果次第で本契約」。リスクの低い提案はブランド側も断りにくい</li>
+    </ol>
+
+    <h3 class="phase-heading">契約形態の選択肢</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>契約形態</th><th>メリット</th><th>デメリット</th><th>はこ向き度</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>独占代理店</td><td>競合排除。ブランド力を独り占め</td><td>MOQ大。投資リスク高い</td><td>&#x2718; 現段階では困難</td></tr>
+          <tr><td>非独占代理店</td><td>リスク低い。複数ブランド扱える</td><td>他社も同じ商品を売れる</td><td>&#x2714; スタート向き</td></tr>
+          <tr><td>ドロップシップ</td><td>在庫リスクゼロ</td><td>利益率低い。納期コントロール不可</td><td>&#x25B3; テスト販売向き</td></tr>
+          <tr><td>OEM/ホワイトラベル</td><td>自社ブランドで差別化可能</td><td>最低ロット大。品質管理が必要</td><td>&#x25B3; 成長後の選択肢</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>「非独占 + ドロップシップ」でテスト → 実績で「非独占代理店」→ 最終的に「独占」のステップアップ戦略</strong></li>
+      <li><strong>交渉前に必ず「日本市場レポート」を準備。これが最大の武器</strong></li>
+      <li><strong>契約書の「最低購入量」「マーケティング義務」条項は必ず交渉で下げる。初期は年間コミットメントを最小限に</strong></li>
+      <li><strong>記事LP実績（CVRデータ）をポートフォリオ化して、ブランド側に「売る力」を証明する</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ヒトミ ==================== -->
+<div class="agent-card" style="--agent-color:#ec4899">
+  <div class="agent-header" style="background:linear-gradient(135deg,#ec4899,#db2777)">
+    <div class="agent-icon">&#x1F464;</div>
+    <div class="agent-header-text">
+      <h2>ヒトミ（Phase 3 - 消費者インサイト分析）</h2>
+      <div class="phase-label">14:36:05</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">解決したペインポイント</h3>
+    <ol>
+      <li><strong>「ソファは固い」という常識の破壊:</strong> 従来のソファは「座る場所」。Yogiboは「体が沈む場所」。根本的に異なる座り心地体験</li>
+      <li><strong>一人暮らしのリビング問題:</strong> 狭い部屋に大きなソファは置けないが、Yogiboなら場所を取らず、使わないときは立てかけられる</li>
+      <li><strong>「ゴロゴロする罪悪感」の解消:</strong> 「人をダメにする」というネーミングが逆説的に「ダメになっていいんだ」と許可を与えた</li>
+    </ol>
+
+    <h3 class="phase-heading">購買決定の心理トリガー</h3>
+    <ul>
+      <li><strong>体験の不可逆性:</strong> 一度座ったら「あ、これ必要」と感じる → 体験型店舗の強さ</li>
+      <li><strong>SNS上の社会的証明:</strong> 「みんな買ってる」「芸能人も使ってる」</li>
+      <li><strong>ギフトという言い訳:</strong> 「自分用に3万円は…でもプレゼントなら」→ ギフト需要で心理的ハードルを超える</li>
+      <li><strong>カラーバリエーション:</strong> 「自分だけのYogibo」を選ぶ楽しさ → 所有欲を刺激</li>
+    </ul>
+
+    <h3 class="phase-heading">日本消費者に刺さった理由</h3>
+    <ul>
+      <li><strong>品質への信頼:</strong> 無印・ニトリの類似品を使った人が「やっぱりYogiboは違う」と感じる品質差</li>
+      <li><strong>レビュー文化:</strong> 楽天・Amazonの高評価レビューが大量 → 日本人の「レビュー依存」に完璧にハマる</li>
+      <li><strong>「おうち時間」トレンド:</strong> コロナ禍で在宅時間増加 → 自宅の居心地改善需要が爆発</li>
+      <li><strong>Instagram映え:</strong> カラフルなYogiboは部屋に置いただけで「映える」</li>
+    </ul>
+
+    <h3 class="phase-heading">リピート・LTVの要因</h3>
+    <ul>
+      <li><strong>へたり→補充ビーズ購入:</strong> 半年〜1年でビーズがへたる設計（計算された消耗）</li>
+      <li><strong>カバー追加購入:</strong> 季節や気分でカバーを変える習慣化</li>
+      <li><strong>サイズ追加:</strong> 「リビング用にMax、寝室用にMini」と増殖</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>「体験しないとわからない」商品は記事LPの腕の見せどころ</strong> — テキスト+画像+動画で疑似体験させる</li>
+      <li><strong>レビューが命。初期のレビュー獲得戦略が成否を分ける</strong></li>
+      <li><strong>「消耗品ビジネスモデル」を内蔵した商品を選ぶと、LTVで圧倒的に有利</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ミライ ==================== -->
+<div class="agent-card" style="--agent-color:#06b6d4">
+  <div class="agent-header" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">
+    <div class="agent-icon">&#x1F4C8;</div>
+    <div class="agent-header-text">
+      <h2>ミライ（Phase 3 - トレンド・タイミング分析）</h2>
+      <div class="phase-label">14:36:12</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">参入タイミングが正しかった理由</h3>
+    <ol>
+      <li><strong>2014年（日本上陸時）:</strong> 無印良品「体にフィットするソファ」が話題になり、ビーズソファカテゴリの認知が広がっていた。Yogiboは「上位互換」として参入</li>
+      <li><strong>2020年（ブレイク時）:</strong> コロナ禍の巣ごもり需要と完全に合致。「おうち時間を豊かに」の文脈で爆発的に売上が伸びた</li>
+      <li><strong>既に店舗網があった:</strong> 2020年時点で数十店舗を展開済み → 需要爆発時に供給できた</li>
+    </ol>
+
+    <h3 class="phase-heading">乗ったマクロトレンド</h3>
+    <ul>
+      <li><strong>おうち時間の充実:</strong> 在宅勤務・巣ごもりの定着</li>
+      <li><strong>QOL（生活の質）向上意識:</strong> 「ちょっと良いもの」への投資意欲の高まり</li>
+      <li><strong>ミニマリズムの逆風:</strong> 「必要なものだけ」の中で「リラックスグッズは必要」という認識</li>
+      <li><strong>ギフト文化の変化:</strong> モノから「体験」へ → Yogiboは「体験の贈り物」</li>
+    </ul>
+
+    <h3 class="phase-heading">持続している理由（一過性ではない）</h3>
+    <ul>
+      <li><strong>カテゴリ自体が新しい:</strong> ビーズソファは「ソファの代替品」として定着しつつある</li>
+      <li><strong>リピートモデル:</strong> 消耗品（ビーズ・カバー）で継続的な売上が発生</li>
+      <li><strong>店舗体験:</strong> オンラインだけでは得られない体験価値が参入障壁に</li>
+    </ul>
+
+    <h3 class="phase-heading">同トレンドで狙える次のカテゴリ</h3>
+    <ol>
+      <li><strong>ウェイトブランケット（加重ブランケット）:</strong> 「包まれる」系で安眠需要に対応</li>
+      <li><strong>スマートマットレス:</strong> 睡眠の質向上。海外で急成長中</li>
+      <li><strong>ホームフレグランス / アロマデバイス:</strong> 五感系のQOL商品</li>
+      <li><strong>エルゴノミクス家具:</strong> 在宅勤務の姿勢改善。Yogiboの仕事版ポジション</li>
+      <li><strong>ペット用リラックスグッズ:</strong> ペット市場の高級化トレンド</li>
+    </ol>
+
+    <h3 class="phase-heading">類似の成功パターン事例</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>ブランド</th><th>パターン</th><th>共通点</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Yogibo</td><td>海外→日本代理店→体験店舗→EC</td><td>体験価値×リピート</td></tr>
+          <tr><td>BALMUDA</td><td>海外発想→日本展開→高価格帯家電</td><td>デザイン×体験</td></tr>
+          <tr><td>Dyson</td><td>イギリス→日本代理店→直営→定着</td><td>高価格×品質差別化</td></tr>
+          <tr><td>Casper (マットレス)</td><td>米国D2C→日本参入（苦戦中）</td><td>寝具体験×EC</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>「既存カテゴリの上位互換」商品は日本で受け入れられやすい</strong> — ゼロから市場を作る必要がない</li>
+      <li><strong>タイミング: マクロトレンドの「波」が来る6ヶ月前に仕込むのが理想</strong></li>
+      <li><strong>上記5カテゴリは今からでも参入余地あり。特にウェイトブランケットとペット用品は注目</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ニホンゴ ==================== -->
+<div class="agent-card" style="--agent-color:#ea580c">
+  <div class="agent-header" style="background:linear-gradient(135deg,#ea580c,#c2410c)">
+    <div class="agent-icon">&#x1F38C;</div>
+    <div class="agent-header-text">
+      <h2>ニホンゴ（Phase 3 - 文化適合度分析）</h2>
+      <div class="phase-label">14:36:18 &#x1F195; NEW</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">Yogiboの日本文化適合度スコア</h3>
+    <div class="highlight-box">総合適合度: 92/100 — 海外商品としては異例の高さ</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>評価軸</th><th>スコア</th><th>分析</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>住居サイズ適合</strong></td><td>90/100</td><td>変形・立てかけ可能。1K〜4LDKまで対応。日本の平均住居（65m&#xB2;）でも圧迫感なし</td></tr>
+          <tr><td><strong>四季との親和性</strong></td><td>95/100</td><td>冬はこたつと相性抜群。夏はカバーを涼しい素材に交換可能。季節ごとのカバー購入がリピート促進</td></tr>
+          <tr><td><strong>贈答文化適合</strong></td><td>85/100</td><td>父の日・母の日・クリスマスのギフト需要。ただし「のし」文化には対応していない（改善余地）</td></tr>
+          <tr><td><strong>美意識・素材感</strong></td><td>88/100</td><td>17色のカラバリが日本人の「選ぶ楽しさ」に合致。ただしアースカラー（くすみ色）の展開がやや弱い</td></tr>
+          <tr><td><strong>清潔感・衛生意識</strong></td><td>95/100</td><td>カバー洗濯可能が日本人の衛生意識に完璧にマッチ。「洗えるソファ」は強力な訴求点</td></tr>
+          <tr><td><strong>名前・ブランド受容性</strong></td><td>90/100</td><td>「ヨギボー」は日本語で発音しやすい。「人をダメにする」は日本語の語感として絶妙</td></tr>
+          <tr><td><strong>生活動線適合</strong></td><td>95/100</td><td>床座り文化との相性◎。こたつ・ローテーブルとの組み合わせが自然。靴を脱ぐ生活に最適</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">日本文化が生んだ「追加価値」</h3>
+    <p>海外にはないYogiboの日本独自の使われ方:</p>
+    <ol>
+      <li><strong>こたつ×Yogibo:</strong> 冬のこたつ文化とビーズソファの相性が異常に良い。「こたつでYogibo」はSNSの定番投稿</li>
+      <li><strong>和室との相性:</strong> 畳の上にそのまま置ける。脚付きソファでは畳が傷むが、Yogiboなら問題なし</li>
+      <li><strong>一人暮らしの「マルチ家具」:</strong> ソファ・ベッド・座布団・クッションを1つで兼用。ミニマリスト志向の日本人に刺さる</li>
+      <li><strong>子供の安全性:</strong> 角がないため子供がぶつかっても安全。子育て世帯の口コミで広がった</li>
+    </ol>
+
+    <h3 class="phase-heading">文化適合度チェックリスト（汎用版）</h3>
+    <p>次の商品評価に使えるフレームワーク:</p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>チェック項目</th><th>合格基準</th><th>不合格例</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>日本の住居に入るか</td><td>6畳間に置いて圧迫感がない</td><td>Pelotonバイク、大型BBQグリル</td></tr>
+          <tr><td>四季に対応できるか</td><td>季節で使い方/カバー/バリエーションが変わる</td><td>季節限定すぎる商品</td></tr>
+          <tr><td>「贈り物」になるか</td><td>価格&#165;3,000〜&#165;30,000。箱がきれい。名入れ可能だと◎</td><td>贈りにくい日用品</td></tr>
+          <tr><td>日本語で語りやすいか</td><td>商品名が3-5音で発音しやすい。体験を一言で言える</td><td>長いカタカナ名、説明が複雑</td></tr>
+          <tr><td>清潔に保てるか</td><td>洗える・拭ける・カバー交換可能</td><td>洗えない布製品</td></tr>
+          <tr><td>音が静かか</td><td>マンションで使っても近隣に迷惑がかからない</td><td>振動系フィットネス機器</td></tr>
+          <tr><td>「和の空間」に馴染むか</td><td>畳・木・白壁に違和感がない</td><td>原色ギラギラの海外デザイン</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <ul>
+      <li><strong>商品選定時に「文化適合度チェックリスト」を必ず実施。7項目中5項目以上で合格の商品のみ次フェーズへ</strong></li>
+      <li><strong>「日本独自の使い方」が生まれる商品は口コミが自然増殖する</strong></li>
+      <li><strong>記事LPでは「日本の暮らしに溶け込む」シーンを必ず描く（和室・こたつ・6畳間の写真）</strong></li>
+      <li><strong>商品名の日本語化を検討。「ヨギボー」のように3-4音で呼べる愛称があると認知速度が上がる</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ツッコミ ==================== -->
+<div class="agent-card" style="--agent-color:#6366f1">
+  <div class="agent-header" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+    <div class="agent-icon">&#x1F9E0;</div>
+    <div class="agent-header-text">
+      <h2>ツッコミ（Phase 4 - 議論品質検証・Anti-Satisficing）</h2>
+      <div class="phase-label">14:39:00</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">後知恵バイアスの検証</h3>
+    <div class="warning-box">警告: 各エージェントの分析に「後知恵バイアス」が顕著に見られる</div>
+    <ul>
+      <li><strong>ソロバン:</strong>「粗利が高いから成功した」→ しかし無印の方が安くて粗利率は同等以上。粗利だけでは説明できない</li>
+      <li><strong>バズ美:</strong>「UGCが自然発生した」→ しかし初期のマーケティング投資額や広告費用は不明。自然発生だけではなかった可能性</li>
+      <li><strong>ミライ:</strong>「コロナで爆発した」→ しかしYogiboは2014年から6年間、地道に投資していた。コロナは追い風に過ぎない</li>
+    </ul>
+
+    <h3 class="phase-heading">見落とされている要素</h3>
+    <ol>
+      <li><strong>ウェブシャーク（代理店）の資金力:</strong> 100店舗出店には莫大な初期投資が必要。中小企業では再現困難</li>
+      <li><strong>先行者利益:</strong> 2014年時点で本格的なビーズソファ専門ブランドは日本に存在しなかった。「2番手」では同じ結果にならない</li>
+      <li><strong>アメリカ本国での失敗:</strong> 実はYogiboはアメリカでは一度経営破綻しかけた。日本での成功が本国を救った構造</li>
+      <li><strong>人材とオペレーション:</strong> 店舗運営のノウハウ、接客トレーニング、在庫管理 — これらは代理店契約だけでは得られない</li>
+    </ol>
+
+    <h3 class="phase-heading">エージェント間の矛盾</h3>
+    <ul>
+      <li><strong>ガードン「規制が軽い＝参入しやすい」vs ツッコミの指摘「参入しやすい＝模倣されやすい」</strong> → ニトリが即座に類似品を出した事実がこれを証明</li>
+      <li><strong>シッパー「スモールスタートでOK」vs 実際のYogiboの戦略「大量出店」</strong> → 矛盾。Yogiboはスモールスタートしていない</li>
+    </ul>
+
+    <h3 class="phase-heading">楽観的すぎる主張</h3>
+    <ul>
+      <li><strong>バズ美:</strong> 「記事LPで体験を疑似体現できれば売れる」→ <strong>しかしYogiboの成功の核心は「リアル体験」であり、記事LPだけでは再現が難しい</strong></li>
+      <li><strong>ミライ:</strong> 「ウェイトブランケットが狙い目」→ <strong>既にニトリ・Amazonプライベートブランドが参入済み。差別化ポイントは？</strong></li>
+    </ul>
+
+    <h3 class="phase-heading">本当の成功要因（統合見解）</h3>
+    <div class="highlight-box">Yogiboの真の成功要因は3つの「掛け算」:</div>
+    <ol>
+      <li><strong>「既存カテゴリの圧倒的上位互換」×「体験の不可逆性」</strong> — 一度座ったら戻れない品質差</li>
+      <li><strong>「独占代理店の本気投資」×「タイミング（コロナの追い風）」</strong> — 運と戦略の両方が揃った</li>
+      <li><strong>「消耗品ビジネスモデル」×「カラバリによる自己表現」</strong> — 機能＋感性の両方を満たす</li>
+    </ol>
+
+    <div class="divider"></div>
+
+    <p><strong>はこへの現実的な示唆:</strong></p>
+    <ul>
+      <li>Yogiboと同じ規模の投資はできない。だが記事LP + EC特化の「ライトモデル」なら再現可能性あり</li>
+      <li>狙うべきは<strong>「体験型商材 × リピート収益 × SNS映え」の三拍子が揃った商品</strong></li>
+      <li>ただし<strong>実店舗なしでの展開は、Yogiboモデルの重要な要素（体験）を欠く</strong>ことを認識すべき</li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== ネガくん ==================== -->
+<div class="agent-card" style="--agent-color:#a21caf">
+  <div class="agent-header" style="background:linear-gradient(135deg,#a21caf,#86198f)">
+    <div class="agent-icon">&#x26B0;&#xFE0F;</div>
+    <div class="agent-header-text">
+      <h2>ネガくん（Phase 4 - 事前検死・最悪シナリオ分析）</h2>
+      <div class="phase-label">14:39:30 &#x1F195; NEW</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">プレモーテム: 1年後に大失敗した未来を想像する</h3>
+    <div class="warning-box">前提: 「はこがYogiboモデルを参考に、海外商品の代理店事業を始めたが、1年後に撤退した」— なぜ？</div>
+
+    <h3 class="phase-heading">最悪シナリオ A: 「売れたけど死んだ」</h3>
+    <ol>
+      <li>ミライの推奨通り、ウェイトブランケットの代理店権を取得（非独占）</li>
+      <li>記事LPが当たり、月商300万円を達成。順調に見える</li>
+      <li><strong>3ヶ月後:</strong> ニトリが同等品を&#165;4,990で発売。価格1/3</li>
+      <li><strong>5ヶ月後:</strong> Amazonに中国製コピー品が&#165;2,000台で大量出品</li>
+      <li><strong>8ヶ月後:</strong> 広告CPA高騰。利益が出なくなり在庫が残る</li>
+      <li><strong>結末:</strong> 売れたのは最初の3ヶ月だけ。在庫処分で赤字撤退</li>
+    </ol>
+    <p><strong>死因:</strong> 参入障壁の低い商材を選んでしまった。ガードンの「規制が軽い＝模倣されやすい」が現実化</p>
+
+    <h3 class="phase-heading">最悪シナリオ B: 「契約が取れなかった」</h3>
+    <ol>
+      <li>ハンターが有望な海外ブランドを5つ発見</li>
+      <li>コンタクトを取るが、全ブランドから「日本のディストリビューターは既にいる」と断られる</li>
+      <li>まだ代理店がいないブランドに絞ると、品質が低いか、知名度がなさすぎるものばかり</li>
+      <li><strong>結末:</strong> 6ヶ月リサーチに費やしたが、1つも契約に至らず。機会損失だけが残る</li>
+    </ol>
+    <p><strong>死因:</strong> 「良い商品を見つける」ことと「契約を取る」ことは全く別のスキル。ネゴシの領域が弱かった</p>
+
+    <h3 class="phase-heading">最悪シナリオ C: 「体験の壁を超えられなかった」</h3>
+    <ol>
+      <li>高品質な体験型商材を見つけ、記事LPを全力で制作</li>
+      <li>CTRは良いがCVRが低い（0.3%以下）</li>
+      <li>ツッコミが指摘した通り、「リアル体験なし」では高単価商品のCVRが上がらない</li>
+      <li>返品率が15%超え。「思ったのと違う」レビューが増殖</li>
+      <li><strong>結末:</strong> 記事LPの限界を証明しただけ。CVR改善にコストをかけ続けて資金枯渇</li>
+    </ol>
+    <p><strong>死因:</strong> バズ美の「記事LPで体験を疑似体現」が楽観的すぎた。体験型商材はオンラインだけでは限界がある</p>
+
+    <h3 class="phase-heading">Kill Criteria（撤退基準）</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>判定時期</th><th>指標</th><th>撤退ライン</th><th>対応策</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1ヶ月目</td><td>ブランドコンタクト成功率</td><td>10社中1社も返信なし</td><td>アプローチ方法を根本変更</td></tr>
+          <tr><td>3ヶ月目</td><td>テスト販売CVR</td><td>0.5%未満</td><td>商品変更 or LP全面改修</td></tr>
+          <tr><td>3ヶ月目</td><td>テスト販売CPA</td><td>商品単価の50%超</td><td>広告停止。オーガニック施策に切替</td></tr>
+          <tr><td>6ヶ月目</td><td>月間粗利</td><td>50万円未満</td><td>事業縮小 or 撤退判断</td></tr>
+          <tr><td>6ヶ月目</td><td>リピート率</td><td>10%未満</td><td>LTVモデル不成立。商品変更</td></tr>
+          <tr><td>12ヶ月目</td><td>累計損失</td><td>500万円超</td><td>完全撤退</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">損失上限の見積もり</h3>
+    <ul>
+      <li><strong>最悪ケース（シナリオA）:</strong> 在庫仕入れ300万 + 広告費200万 + 人件費100万 = <strong>損失上限 約600万円</strong></li>
+      <li><strong>中程度（シナリオB）:</strong> リサーチ人件費150万 + 渡航費50万 = <strong>損失上限 約200万円</strong></li>
+      <li><strong>軽度（シナリオC）:</strong> LP制作費50万 + テスト広告費100万 + 返品損50万 = <strong>損失上限 約200万円</strong></li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへの示唆</h3>
+    <div class="highlight-box">「始める前にKill Criteriaを決める」— これが最も重要な投資判断</div>
+    <ul>
+      <li><strong>テスト販売で失う最大額を事前に決める（推奨: 初期投資上限100万円）</strong></li>
+      <li><strong>3ヶ月ごとにKill Criteriaをレビュー。感情で継続しない</strong></li>
+      <li><strong>シナリオAを避けるため、参入障壁の評価（ガードン＋ミライ）を最重視</strong></li>
+      <li><strong>シナリオBを避けるため、ネゴシの交渉戦略を先に策定</strong></li>
+      <li><strong>シナリオCを避けるため、「体験なしでも売れる商材」をニホンゴの文化適合度で絞り込む</strong></li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== オヤカタ ==================== -->
+<div class="agent-card" style="--agent-color:#ca8a04">
+  <div class="agent-header" style="background:linear-gradient(135deg,#ca8a04,#a16207)">
+    <div class="agent-icon">&#x1F451;</div>
+    <div class="agent-header-text">
+      <h2>オヤカタ（Phase 4.5 - 最終意思決定）</h2>
+      <div class="phase-label">14:41:00 &#x1F195; NEW</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">最終判定</h3>
+    <div class="highlight-box" style="background:#fef9c3;border-color:#ca8a04;font-size:16px">判定: 条件付きGo &#x1F7E1;</div>
+    <p>Yogiboモデルを「そのまま」再現するのは<strong>No-Go</strong>（資金力・店舗がない）。<br>
+    だが、はこの強み（記事LP×DRM）を活かした<strong>「ライトモデル」ならGo</strong>。以下の条件を満たすこと。</p>
+
+    <h3 class="phase-heading">Go条件（全て満たすこと）</h3>
+    <ol>
+      <li><strong>商品選定基準の厳守:</strong> 「体験型×リピート×SNS映え」の三拍子 + シパイの失敗パターン非該当 + ニホンゴの文化適合度5/7以上</li>
+      <li><strong>初期投資上限:</strong> テストフェーズは100万円以内。在庫は持たずドロップシップ or 少量仕入れ</li>
+      <li><strong>Kill Criteriaの事前設定:</strong> ネガくんが設定した撤退基準を経営陣が合意・書面化</li>
+      <li><strong>契約形態:</strong> 最初は非独占 + テストマーケティング契約。独占権は実績後に交渉</li>
+      <li><strong>体験の代替手段:</strong> 記事LPだけでなく、動画レビュー・インフルエンサー体験・返品保証のいずれかを用意</li>
+    </ol>
+
+    <h3 class="phase-heading">リソース配分の優先順位</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>優先度</th><th>タスク</th><th>担当</th><th>期限</th><th>予算</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="priority-high">1</span></td><td>候補商品5つのリストアップ（成功事例+失敗事例付き）</td><td>ハンター + シパイ</td><td>1週間</td><td>0円（リサーチ）</td></tr>
+          <tr><td><span class="priority-high">2</span></td><td>候補商品の文化適合度チェック + 失敗パターンスクリーニング</td><td>ニホンゴ + シパイ</td><td>3日</td><td>0円（リサーチ）</td></tr>
+          <tr><td><span class="priority-high">3</span></td><td>Top 2商品のブランドへのコンタクト + 交渉戦略策定</td><td>ネゴシ</td><td>2週間</td><td>10万円（渡航・資料）</td></tr>
+          <tr><td><span class="priority-mid">4</span></td><td>テスト販売用の記事LP制作</td><td>バズ美</td><td>1週間</td><td>30万円（制作費）</td></tr>
+          <tr><td><span class="priority-mid">5</span></td><td>テスト広告出稿（3ヶ月）</td><td>バズ美 + ソロバン</td><td>3ヶ月</td><td>50万円（広告費）</td></tr>
+          <tr><td><span class="priority-low">6</span></td><td>Kill Criteria判定会議</td><td>オヤカタ + ネガくん</td><td>3ヶ月後</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">10x思考: はこを10倍にするシナリオ</h3>
+    <div class="highlight-box">10%改善ではなく、10倍成長の道筋を描く</div>
+    <ul>
+      <li><strong>現在:</strong> 記事LP制作会社として受託ビジネス</li>
+      <li><strong>Phase 1（6ヶ月）:</strong> 自社で1商品の代理店販売を開始。記事LP力で他社より高いCVRを実証</li>
+      <li><strong>Phase 2（1年）:</strong> 成功モデルを横展開。3-5商品の代理店ポートフォリオを構築</li>
+      <li><strong>Phase 3（2年）:</strong> 「海外商品の日本上陸支援プラットフォーム」として、LP制作+マーケ+物流をワンストップ提供</li>
+      <li><strong>Phase 4（3年）:</strong> 海外ブランドから「日本に進出したいならはこに頼め」と言われるポジション確立。SaaS的な月額モデルへ</li>
+    </ul>
+    <p><strong>この場合の売上イメージ:</strong> 現在の10倍 = 記事LP受託の延長ではなく、代理店収益 + プラットフォーム手数料モデルへの転換が必要</p>
+
+    <h3 class="phase-heading">最終メッセージ</h3>
+    <blockquote>
+      Yogiboの分析から学ぶべきは「何が成功したか」ではなく「何が揃えば成功するか」の条件式。<br>
+      はこには店舗も大資本もない。だが「記事LPで売る力」という武器がある。<br>
+      <strong>この武器が最大限効く商材を、失敗パターンを避けながら、撤退基準を持って攻める。</strong><br>
+      それが今回の議論の結論だ。
+    </blockquote>
+
+  </div>
+</div>
+
+<!-- ==================== まとめ ==================== -->
+<div class="agent-card" style="--agent-color:#64748b">
+  <div class="agent-header" style="background:linear-gradient(135deg,#64748b,#475569)">
+    <div class="agent-icon">&#x1F4DD;</div>
+    <div class="agent-header-text">
+      <h2>まとめ（Phase 5 - 最終議事録 &amp; Skill抽出）</h2>
+      <div class="phase-label">14:43:00</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">エグゼクティブサマリー</h3>
+    <p>Yogiboケーススタディから「日本未上陸商品リサーチ＆国内販売」の実行モデルを構築。15エージェント体制で成功パターン・失敗パターン・文化適合度・交渉戦略・撤退基準・意思決定を網羅。はこの強み（記事LP×DRM）を最大限活かしつつ、生存者バイアスを排除した商品選定フレームワークを確立した。</p>
+
+    <h3 class="phase-heading">成功要因ランキング（Yogiboケーススタディより）</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>順位</th><th>要因</th><th>指摘したエージェント</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1位</td><td>圧倒的な体験品質（座ったら戻れない）</td><td>ハンター、ヒトミ、ツッコミ</td></tr>
+          <tr><td>2位</td><td>リピート収益モデル（ビーズ・カバー）</td><td>ソロバン、シッパー</td></tr>
+          <tr><td>3位</td><td>日本文化への異例の高適合度（92/100）</td><td>ニホンゴ</td></tr>
+          <tr><td>4位</td><td>体験型店舗による高い購買転換率</td><td>バズ美、ソロバン</td></tr>
+          <tr><td>5位</td><td>独占販売権の早期取得（2014年時点の先行者利益）</td><td>ネゴシ、ツッコミ</td></tr>
+          <tr><td>6位</td><td>コロナ禍の巣ごもり需要との合致</td><td>ミライ</td></tr>
+          <tr><td>7位</td><td>「人をダメにする」のキャッチコピー</td><td>バズ美、ヒトミ</td></tr>
+          <tr><td>8位</td><td>失敗パターン（住居不適合・代替品の壁等）を全て回避</td><td>シパイ</td></tr>
+          <tr><td>9位</td><td>規制ハードルの低さ（参入スピード）</td><td>ガードン</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">全15エージェントの主要ポイント</h3>
+    <ul>
+      <li><strong>ハンター:</strong> Yogiboは2014年日本上陸。無印の類似品が市場を教育した後に「上位互換」として参入</li>
+      <li><strong>シパイ:</strong> 失敗5大パターンを類型化（住居不適合・代替品の壁・文化的前提崩壊・価格感覚ズレ・体験チャネル不在）。成功事例1件につき失敗事例2件を調べるルールを提案</li>
+      <li><strong>ソロバン:</strong> 粗利65-70%の高収益構造。カバー・ビーズのリピートで長期LTVを実現</li>
+      <li><strong>バズ美:</strong> 「人をダメにするソファ」のキャッチと体験型店舗がUGCを自然発生させた</li>
+      <li><strong>ガードン:</strong> インテリアカテゴリは法規制が軽く参入しやすいが、模倣もされやすい</li>
+      <li><strong>シッパー:</strong> 「軽くてかさばる」商材は輸送コスト効率が良い。圧縮梱包が鍵</li>
+      <li><strong>ネゴシ:</strong> 独占権は最初から取れない。非独占→実績→独占のステップアップ戦略。記事LP実績が最大の交渉レバレッジ</li>
+      <li><strong>ヒトミ:</strong> 「ダメになっていい」という心理的許可。レビュー文化×品質差で選ばれ続ける</li>
+      <li><strong>ミライ:</strong> 「おうち時間」トレンドと合致。次の狙い目はウェイトブランケット・ペット用品</li>
+      <li><strong>ニホンゴ:</strong> Yogiboの日本文化適合度92/100（異例の高さ）。7項目の汎用チェックリストを策定</li>
+      <li><strong>ツッコミ:</strong> 後知恵バイアスに注意。実店舗なしでの再現は困難。資金力の壁も指摘</li>
+      <li><strong>ネガくん:</strong> 3つの最悪シナリオ（模倣品殺到・契約取れず・体験の壁）を描写。Kill Criteria（撤退基準）を数値で設定</li>
+      <li><strong>オヤカタ:</strong> 「条件付きGo」を判定。初期投資100万円上限、非独占スタート、体験代替手段の用意を条件に。10x成長シナリオも提示</li>
+      <li><strong>まとめ:</strong> 全エージェントの分析を統合。12のSkillを抽出（既存6 + 新規6）</li>
+      <li><strong>キロク:</strong> 15エージェント全員の発言を最終レポートとして整理</li>
+    </ul>
+
+    <h3 class="phase-heading">株式会社はこへのアクションアイテム（統合版）</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>優先度</th><th>アクション</th><th>理由</th><th>担当エージェント</th><th>期限</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="priority-high">最優先</span></td><td>日本未上陸の候補商品5つをリストアップ（成功事例+失敗事例付き）</td><td>リサーチの出発点</td><td>ハンター + シパイ</td><td>1週間</td></tr>
+          <tr><td><span class="priority-high">最優先</span></td><td>候補商品の文化適合度チェック + 失敗パターンスクリーニング</td><td>日本で売れるかの最初のフィルター</td><td>ニホンゴ + シパイ</td><td>3日</td></tr>
+          <tr><td><span class="priority-high">最優先</span></td><td>Kill Criteria（撤退基準）の書面化と経営陣合意</td><td>始める前に「やめ方」を決める</td><td>ネガくん + オヤカタ</td><td>1日</td></tr>
+          <tr><td><span class="priority-mid">要検討</span></td><td>Top 2商品のブランドへのコンタクト + 交渉戦略策定</td><td>良い商品でも契約が取れなければ意味がない</td><td>ネゴシ</td><td>2週間</td></tr>
+          <tr><td><span class="priority-mid">要検討</span></td><td>テスト販売用の記事LP制作（体験代替手段含む）</td><td>はこの最大の武器を活かす</td><td>バズ美 + ヒトミ</td><td>1週間</td></tr>
+          <tr><td><span class="priority-mid">要検討</span></td><td>テスト広告出稿（3ヶ月）+ 月次レビュー</td><td>データに基づく判断</td><td>バズ美 + ソロバン</td><td>3ヶ月</td></tr>
+          <tr><td><span class="priority-low">参考</span></td><td>EC特化型で成功した海外→日本事例を5つ追加調査</td><td>実店舗なしモデルの実現可能性検証</td><td>ハンター + シパイ</td><td>2週間</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">今回の議論から得られたSkill — 全12件（次回に活用）</h3>
+    <p><strong>既存Skill（Yogiboケーススタディより）:</strong></p>
+    <ol>
+      <li><span class="skill-tag">market_insight</span> <strong>「既存カテゴリの上位互換」は日本市場で受け入れられやすい</strong> — ゼロからの市場教育が不要なため、マーケティングコストが抑えられる（適用: 全カテゴリ / 出典: Yogibo）</li>
+      <li><span class="skill-tag">pricing</span> <strong>リピート収益モデルを内蔵した商品はLTV3-5倍</strong> — 本体×消耗品の構造を持つ商品を優先的に選定すべき（適用: 全カテゴリ / 出典: Yogibo）</li>
+      <li><span class="skill-tag">consumer</span> <strong>「心理的許可」を与えるネーミングが購買を促進する</strong> — 「ダメになっていい」のような逆説的な許可がCVRに寄与（適用: 記事LP全般 / 出典: Yogibo）</li>
+      <li><span class="skill-tag">logistics</span> <strong>「軽くてかさばる」商材は輸送効率が良い</strong> — 重量課金の場合コスト優位。圧縮梱包技術の有無も商品選定基準に（適用: インテリア・雑貨 / 出典: Yogibo）</li>
+      <li><span class="skill-tag">trend</span> <strong>マクロトレンドの波に乗れるタイミング = 上陸6ヶ月前がベスト</strong> — 市場が立ち上がってから参入しても遅い（適用: 全カテゴリ / 出典: Yogibo）</li>
+      <li><span class="skill-tag">regulation</span> <strong>規制が軽いカテゴリは参入もされやすい。差別化で勝負</strong> — 知財（意匠・商標）確保が必須（適用: インテリア・雑貨 / 出典: Yogibo）</li>
+    </ol>
+
+    <div class="divider"></div>
+
+    <p><strong>新規Skill（新エージェント＋思考フレームワークより）:</strong></p>
+    <ol start="7">
+      <li><span class="skill-tag">failure_pattern</span> <strong>日本市場で海外商品が失敗する5大パターン</strong> — 住居サイズ不適合・既存代替品の壁・文化的前提の崩壊・価格感覚のズレ・体験チャネルの不在。商品選定時に必ずチェック（適用: 全カテゴリ / 出典: Casper, Blue Apron, Brandless, Traeger, Peloton）</li>
+      <li><span class="skill-tag">deal_structure</span> <strong>代理店契約のステップアップ戦略</strong> — 非独占＋ドロップシップ → 実績で非独占代理店 → 独占。交渉レバレッジは「日本市場データ」と「記事LP実績（CVRデータ）」（適用: 全カテゴリ / 出典: Yogibo × ウェブシャーク分析）</li>
+      <li><span class="skill-tag">kill_criteria</span> <strong>撤退基準の事前設定が最も重要な投資判断</strong> — 1ヶ月: コンタクト成功率、3ヶ月: CVR 0.5%以上・CPA単価50%未満、6ヶ月: 月間粗利50万円以上・リピート率10%以上、12ヶ月: 累計損失500万円上限（適用: 全プロジェクト / 出典: ネガくん分析）</li>
+      <li><span class="skill-tag">cultural_fit</span> <strong>日本文化適合度7項目チェックリスト</strong> — 住居サイズ・四季対応・贈答適性・日本語での語りやすさ・清潔性・静音性・和空間との調和。5/7以上で合格（適用: 全カテゴリ / 出典: ニホンゴ分析）</li>
+      <li><span class="skill-tag">survivorship_bias</span> <strong>生存者バイアス補正テンプレート</strong> — 成功事例N件に対し、必ず失敗事例N×2件を併記。「なぜ成功したか」より「なぜ他は失敗したか」の方が実務で10倍役立つ（適用: 全ケーススタディ / 出典: シパイ分析）</li>
+      <li><span class="skill-tag">second_order</span> <strong>二次効果チェーン分析</strong> — 施策→直接効果→競合反応→市場変化→自社への跳ね返りまで4段階で考える。「売れた→ニトリが3ヶ月で模倣→価格崩壊→撤退」のチェーンを事前に描く（適用: 全戦略立案 / 出典: ネガくん × ツッコミ分析）</li>
+    </ol>
+
+    <h3 class="phase-heading">適用される思考フレームワーク（全エージェント共通）</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>フレームワーク</th><th>問い</th><th>主に使うエージェント</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>インバージョン思考</strong></td><td>「どうすれば確実に失敗するか？」を先に考え、それを避ける</td><td>ネガくん、シパイ</td></tr>
+          <tr><td><strong>セカンドオーダー効果</strong></td><td>「Aが起きたらBが起きる。BからCへ」の連鎖を4段階まで描く</td><td>ミライ、ソロバン、ネガくん</td></tr>
+          <tr><td><strong>Jobs-to-be-Done</strong></td><td>消費者は何の「仕事」を片付けるためにこの商品を「雇う」のか？（機能的・感情的・社会的の3層）</td><td>ヒトミ</td></tr>
+          <tr><td><strong>10x vs 10%テスト</strong></td><td>「この施策は10%の改善か、10倍の改善か？」10倍の道筋を常に問う</td><td>オヤカタ、ソロバン</td></tr>
+          <tr><td><strong>レッドチーム方式</strong></td><td>ツッコミの批判 → 各エージェントが反論 → 再反論 → 合意形成の弁証法プロセス</td><td>ツッコミ vs 全員</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="phase-heading">議論品質の総括</h3>
+    <p>旧10エージェント体制では「成功事例の分析」に偏り、生存者バイアス・後知恵バイアスが議論全体を汚染していた。新5エージェント（シパイ・ネゴシ・ニホンゴ・ネガくん・オヤカタ）と5つの思考フレームワークの導入により、以下が構造的に改善された:</p>
+    <ul>
+      <li><strong>シパイ:</strong> 失敗事例の体系的インプットで生存者バイアスを補正</li>
+      <li><strong>ネゴシ:</strong> 「良い商品を見つけた」から「契約を取れた」へのギャップを埋める</li>
+      <li><strong>ニホンゴ:</strong> 「海外で売れた」≠「日本で売れる」の文化的フィルターを追加</li>
+      <li><strong>ネガくん:</strong> 「やる判断」だけでなく「やめる判断」の基準を事前設定</li>
+      <li><strong>オヤカタ:</strong> 分析の集合体を「実行可能な意思決定」に変換</li>
+    </ul>
+
+  </div>
+</div>
+
+<!-- ==================== キロク ==================== -->
+<div class="agent-card" style="--agent-color:#0ea5e9">
+  <div class="agent-header" style="background:linear-gradient(135deg,#0ea5e9,#0284c7)">
+    <div class="agent-icon">&#x1F4C4;</div>
+    <div class="agent-header-text">
+      <h2>キロク（Phase 6 - 最終レポート）</h2>
+      <div class="phase-label">14:46:00</div>
+    </div>
+  </div>
+  <div class="agent-body">
+
+    <h3 class="phase-heading">レポートタイトル</h3>
+    <p><strong>&#x1F4CA; 日本未上陸商品リサーチ＆国内販売 — Yogiboケーススタディからの戦略構築レポート</strong></p>
+
+    <h3 class="phase-heading">結論（30秒で読めるサマリー）</h3>
+    <blockquote>
+      Yogiboの成功を分析し、15エージェント体制で「日本未上陸商品の発掘→評価→販売」の実行フレームワークを構築。<br>
+      商品選定は「三拍子（体験型×リピート×SNS映え）」+ 失敗パターン非該当 + 文化適合度5/7以上で絞り込む。<br>
+      <strong>オヤカタ判定: 条件付きGo。初期投資100万円以内、Kill Criteriaを事前設定し、非独占から攻める。</strong>
+    </blockquote>
+
+    <h3 class="phase-heading">全15エージェントの発言まとめ</h3>
+
+    <div class="agent-quote" style="background:#eff6ff;border-color:#3b82f6;color:#1e3a5f">
+      <strong>ハンター &#x1F50D;:</strong> 「Yogiboは2014年に日本上陸。無印の類似品が市場を作った後に、上位互換として刺さった。競合は無印・ニトリ・ハナロロだが、品質と体験で圧倒」
+    </div>
+
+    <div class="agent-quote" style="background:#fff1f2;border-color:#e11d48;color:#881337">
+      <strong>シパイ &#x1F480;:</strong> 「Casper・Blue Apron・Brandless・Traeger・Peloton — 死屍累々の戦場から5大失敗パターンを抽出した。Yogiboが成功したのは、この5つの地雷を全て回避したから。成功事例1件につき失敗事例2件を調べるルールを提案する」
+    </div>
+
+    <div class="agent-quote" style="background:#f0fdf4;border-color:#22c55e;color:#14532d">
+      <strong>ソロバン &#x1F4CA;:</strong> 「粗利65-70%、カバーとビーズのリピートでLTV3-5倍。はこが代理店で扱うなら、このリピート収益構造が鍵」
+    </div>
+
+    <div class="agent-quote" style="background:#fffbeb;border-color:#f59e0b;color:#78350f">
+      <strong>バズ美 &#x1F4E3;:</strong> 「『人をダメにするソファ』の一言が全て。UGCが自然発生し、SNSが最大の広告塔に。はこの記事LP力で体験を疑似体現できれば強い」
+    </div>
+
+    <div class="agent-quote" style="background:#fef2f2;border-color:#ef4444;color:#7f1d1d">
+      <strong>ガードン &#x2696;&#xFE0F;:</strong> 「インテリアは規制が軽い。参入速度で勝負できるが、模倣もされやすい。知財確認を忘れずに」
+    </div>
+
+    <div class="agent-quote" style="background:#f5f3ff;border-color:#8b5cf6;color:#3b0764">
+      <strong>シッパー &#x1F6A2;:</strong> 「軽くてかさばる商材は輸送効率◎。初期はAmazon FBAでテスト、実績ができてから拡大のYogiboモデルは参考になる」
+    </div>
+
+    <div class="agent-quote" style="background:#f0fdfa;border-color:#0d9488;color:#134e4a">
+      <strong>ネゴシ &#x1F91D;:</strong> 「独占権は最初から取れない。非独占+ドロップシップ→実績→独占のステップアップ戦略で攻める。交渉レバレッジは『日本市場データ』と『記事LP実績（CVRデータ）』。テストマーケティング提案なら断られにくい」
+    </div>
+
+    <div class="agent-quote" style="background:#fdf2f8;border-color:#ec4899;color:#831843">
+      <strong>ヒトミ &#x1F464;:</strong> 「消費者は『ダメになっていい許可』をもらった。レビュー文化と品質差で選ばれ続ける。リピートの仕組みがLTVを押し上げている」
+    </div>
+
+    <div class="agent-quote" style="background:#ecfeff;border-color:#06b6d4;color:#164e63">
+      <strong>ミライ &#x1F4C8;:</strong> 「おうち時間トレンドがド追い風。次の波はウェイトブランケット、スマート睡眠、ペット用品。6ヶ月前に仕込むのが理想」
+    </div>
+
+    <div class="agent-quote" style="background:#fff7ed;border-color:#ea580c;color:#7c2d12">
+      <strong>ニホンゴ &#x1F38C;:</strong> 「Yogiboの日本文化適合度は92/100で異例の高さ。こたつ×ビーズソファ、和室でも使える柔軟性、洗えるカバーが日本人の衛生意識に完璧マッチ。次の商品も7項目チェックリストで文化適合度5/7以上を必須条件に」
+    </div>
+
+    <div class="agent-quote" style="background:#eef2ff;border-color:#6366f1;color:#312e81">
+      <strong>ツッコミ &#x1F9E0;:</strong> 「&#x26A0;&#xFE0F; 後知恵バイアスに注意。ウェブシャークの資金力、実店舗体験、6年間の地道な投資 — これらなしにYogiboの成功は再現できない。はこはEC特化の別モデルを模索すべき」
+    </div>
+
+    <div class="agent-quote" style="background:#fdf4ff;border-color:#a21caf;color:#701a75">
+      <strong>ネガくん &#x26B0;&#xFE0F;:</strong> 「1年後に失敗した未来を3パターン描いた。A:模倣品殺到で在庫処分。B:そもそも契約が取れない。C:体験の壁でCVR上がらず。始める前にKill Criteriaを決めろ。感情で継続するな」
+    </div>
+
+    <div class="agent-quote" style="background:#fefce8;border-color:#ca8a04;color:#713f12">
+      <strong>オヤカタ &#x1F451;:</strong> 「判定: 条件付きGo。Yogiboモデルの丸コピーはNo-Go。はこの武器（記事LP力）が最大限効く商材を、失敗パターンを避けながら、撤退基準を持って攻める。10x成長の道筋は『日本上陸支援プラットフォーム』への進化」
+    </div>
+
+    <div class="agent-quote" style="background:#f8fafc;border-color:#64748b;color:#1e293b">
+      <strong>まとめ &#x1F4DD;:</strong> 「15エージェント体制で12のSkillを蓄積。成功分析だけでなく、失敗回避・文化適合・交渉・撤退基準・意思決定まで網羅。次は実際の商品リサーチに移行」
+    </div>
+
+    <h3 class="phase-heading">次回の議題（日本未上陸商品リサーチ本番）</h3>
+    <ol>
+      <li><strong>ハンター + シパイ:</strong> 日本未上陸の有望商品を5つリストアップ（各商品に成功可能性＋失敗リスクを付記）</li>
+      <li><strong>ニホンゴ:</strong> 5商品の日本文化適合度チェック（7項目スコアリング）</li>
+      <li><strong>ネゴシ:</strong> Top 2商品のブランドコンタクト戦略 + 契約条件の叩き台</li>
+      <li><strong>ネガくん:</strong> Top 2商品の最悪シナリオ描写 + 商品別Kill Criteria設定</li>
+      <li><strong>オヤカタ:</strong> 全分析を統合し、最初の1商品のGo/No-Go判定</li>
+    </ol>
+
+  </div>
+</div>
+
+</div><!-- end .sections -->
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-card">
+    <p><strong>議論終了: 2026年03月01日 14:46:00</strong></p>
+    <p><strong>参加エージェント: 15/15（全員発言完了）</strong></p>
+    <p style="margin-top:6px;font-size:11px;color:#64748b">既存: ハンター / ソロバン / バズ美 / ガードン / シッパー / ヒトミ / ミライ / ツッコミ / まとめ / キロク</p>
+    <p style="font-size:11px;color:#ca8a04">新規: シパイ / ネゴシ / ニホンゴ / ネガくん / オヤカタ</p>
+    <p style="margin-top:10px;font-size:11px;opacity:.6">自動更新: 30秒ごと</p>
+  </div>
+</div>
+
+<!-- Floating Refresh Button -->
+<button class="fab-refresh" onclick="location.reload()" title="ページを更新" aria-label="ページを更新">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+</button>
+
+</body>
+</html>
